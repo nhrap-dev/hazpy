@@ -1,0 +1,112 @@
+{% set name = "hazpy" %}
+{% set version = "0.0.1" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  path: "."
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . -vv"
+
+requirements:
+  host:
+    - pip
+    - python
+  run:
+    - python
+    - affine
+    - asn1crypto
+    - attrs
+    - bcrypt
+    - certifi
+    - cffi
+    - chardet
+    - Click
+    - click-plugins
+    - cligj
+    - cryptography
+    - cycler
+    - descartes
+    - Fiona
+    - GDAL
+    - geopandas
+    - idna
+    - jenkspy
+    - kiwisolver
+    - mapclassify
+    - matplotlib
+    - mkl_fft
+    - mkl_random
+    - mkl-service
+    - munch
+    - numpy
+    - olefile
+    - palettable
+    - pandas
+    - paramiko
+    - patsy
+    - pdfrw
+    - Pillow
+    - psycopg2
+    - pycparser
+    - PyNaCl
+    - pyodbc
+    - pyOpenSSL
+    - pyparsing
+    - PyPDF2
+    - pyproj
+    - pysal
+    - PySocks
+    - python-dateutil
+    - pytz
+    - rasterio
+    - reportlab
+    - requests
+    - Rtree
+    - scipy
+    - seaborn
+    - Shapely
+    - six
+    - snuggs
+    - SQLAlchemy
+    - statsmodels
+    - tornado
+    - urllib3
+    - utm
+    - win_inet_pton
+    - wincertstore
+
+test:
+  imports:
+    - hazpy
+    - hazpy.common
+    - hazpy.earthquake
+    - hazpy.earthquake.modules
+    - hazpy.flood
+    - hazpy.flood.modules
+    - hazpy.hurricane
+    - hazpy.hurricane.modules
+    - hazpy.legacy
+    - hazpy.legacy.exporting
+    - hazpy.legacy.exporting.reports
+    - hazpy.legacy.exporting.results
+    - hazpy.tornado
+    - hazpy.tsunami
+    - hazpy.tsunami.modules
+
+about:
+  home: "https://github.com/nhrap-hazus/hazpy.git"
+  license: "GNU General Public v3 or later (GPLv3+)"
+  license_family: GPL3
+  license_file: 
+  summary: "FEMA - HazPy Open-Source Library"
+  doc_url: 
+  dev_url: 
+
+extra:
+  recipe-maintainers:
+    - lorax521
