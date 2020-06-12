@@ -1,5 +1,5 @@
 {% set name = "hazpy" %}
-{% set version = "0.0.1" %}
+{% set version = "0.0.2" %}
 
 package:
   name: "{{ name|lower }}"
@@ -99,14 +99,15 @@ test:
     - hazpy.tsunami.modules
 
 about:
-  home: "https://github.com/nhrap-hazus/hazpy.git"
+  home: "https://github.com/nhrap-dev/hazpy.git"
   license: "GNU General Public v3 or later (GPLv3+)"
   license_family: GPL3
   license_file: 
-  summary: "FEMA - HazPy Open-Source Library"
+  summary: "FEMA - HazPy dev Open-Source Library"
   doc_url: 
   dev_url: 
 
 extra:
   recipe-maintainers:
     - lorax521
+    - ujvalak

@@ -5,13 +5,13 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="hazpy",
-    version="0.0.1",
-    author="James Raines",
-    author_email="james.rainesii@fema.dhs.gov",
+    version="0.0.2",
+    author="James Raines","Ujvala K Sharma"
+    author_email="james.rainesii@fema.dhs.gov","usharma@niyamit.com"
     description="FEMA - Hazus Open-Source Library",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/nhrap-hazus/hazpy.git",
+    url="https://github.com/nhrap-dev/hazpy.git",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
