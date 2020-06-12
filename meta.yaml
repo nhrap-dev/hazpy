@@ -1,5 +1,9 @@
 {% set name = "hazpy" %}
+<<<<<<< HEAD
 {% set version = "0.0.2" %}
+=======
+{% set version = "0.0.1" %}
+>>>>>>> 4de86bc3adb4bc438e93b9145c8166fb87a1edce
 
 package:
   name: "{{ name|lower }}"
@@ -110,4 +114,7 @@ about:
 extra:
   recipe-maintainers:
     - lorax521
+<<<<<<< HEAD
     - ujvalak
+=======
+>>>>>>> 4de86bc3adb4bc438e93b9145c8166fb87a1edce
