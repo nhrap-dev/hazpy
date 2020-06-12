@@ -28,13 +28,13 @@ def read_sql(comp_name, cnxn, inputs):
                     print('ERR ------- ' + col)
         return df
 
-    # Select results from SQL Server Hazus study region database
+    #Select results from SQL Server Hazus study region database
     sql_econ_loss = """SELECT CensusBlock, SUM(ISNULL(TotalLoss, 0))
         AS EconLoss FROM %s.dbo.[tsuvResDelKTotB]
-        Group by CensusBlock""" % inputs['study_region']
+        Group by CensusBlock""" %inputs['study_region']
 
     sql_demographics = """SELECT CensusBlock, Population, Households FROM
-        %s.dbo.[hzDemographicsB]""" % inputs['study_region']
+        %s.dbo.[hzDemographicsB]""" %inputs['study_region']
 
     sql_injury = """SELECT
         cdf.CensusBlock,
@@ -159,7 +159,7 @@ def read_sql(comp_name, cnxn, inputs):
         FULL JOIN [{s}].[dbo].[tsFRNsiGbs] ON {s}.dbo.tsHazNsiGbs.NsiID = 
         [{s}].[dbo].[tsFRNsiGbs].NsiID WHERE EqBldgTypeID IS NOT NULL
         GROUP BY eqBldgType, [Description]""".format(s=inputs['study_region'])
-
+    
     sql_county_fips = """SELECT Tract, {0}.dbo.hzCounty.CountyFips, State, {0}.dbo.hzCounty.CountyName
         FROM {0}.dbo.[hzTract] FULL JOIN {0}.dbo.hzCounty ON {0}.dbo.hzTract.CountyFips
         = {0}.dbo.hzCounty.CountyFips""".format(inputs['study_region'])
@@ -174,27 +174,27 @@ def read_sql(comp_name, cnxn, inputs):
                     ON tiger.CensusBlock = travel.CensusBlock""".format(s=inputs['study_region'])
 
     sql_hazard = """SELECT Depth, Shape.STAsText() AS Shape
-        FROM %s.dbo.tsHazNsiGbs""" % inputs['study_region']
+        FROM %s.dbo.tsHazNsiGbs""" %inputs['study_region']
 
-    # Group tables and queries into iterable
+    #Group tables and queries into iterable
     hazus_results = {'econ_loss': sql_econ_loss, 'demographics': sql_demographics,
-                     'injury': sql_injury, 'building_damage': sql_building_damage,
-                     'building_damage_occup': sql_building_damage_occup,
-                     'building_damage_bldg_type': sql_building_damage_bldg_type,
-                     'county_fips': sql_county_fips,
-                     'censusblock_spatial': sql_spatial,
-                     'hazard': sql_hazard}
+                    'injury': sql_injury, 'building_damage': sql_building_damage,
+                    'building_damage_occup': sql_building_damage_occup,
+                    'building_damage_bldg_type': sql_building_damage_bldg_type,
+                    'county_fips': sql_county_fips,
+                    'censusblock_spatial': sql_spatial,
+                    'hazard': sql_hazard}
 
-    # Read result tables from SQL Server into dataframes with Census ID as index
+    #Read result tables from SQL Server into dataframes with Census ID as index
     hazus_results_dict = {table: pd.read_sql(query, cnxn) for table, query
-                          in hazus_results.items()}
+    in hazus_results.items()}
     for name, dataframe in hazus_results_dict.items():
         if (name != 'building_damage_occup') and (name != 'building_damage_bldg_type'):
             try:
                 dataframe.set_index('CensusBlock', append=False, inplace=True)
             except:
                 pass
-
+    
     # Convert units to real $$ bills y'all
     hazus_results_dict['econ_loss'] = hazus_results_dict['econ_loss'] * 1000
 
@@ -211,8 +211,7 @@ def read_sql(comp_name, cnxn, inputs):
     # update results with dictionary title
     occup_df = hazus_results_dict['building_damage_occup']
     for key in oc_dict.keys():
-        occup_df.loc[occup_df['Occupancy'].str.contains(
-            key), 'Occupancy'] = oc_dict[key]
+        occup_df.loc[occup_df['Occupancy'].str.contains(key), 'Occupancy'] = oc_dict[key]
     occup_df = occup_df.groupby('Occupancy').sum().reset_index()
 
     # format new data frame for plotting bar plot
@@ -222,9 +221,9 @@ def read_sql(comp_name, cnxn, inputs):
         hue_df = occup_df[['Occupancy', hue]]
         hue_df.columns = ['Occupancy', 'Total']
         if hue == 'NoDamage':
-            hue_df['Status'] = 'No Damage'
+           hue_df['Status'] = 'No Damage'
         else:
-            hue_df['Status'] = hue
+           hue_df['Status'] = hue
         new_occup_df = new_occup_df.append(hue_df)
     # new_occup_df['Total'] = new_occup_df['Total'].astype(int)
     new_occup_df['Total'] = round(new_occup_df['Total'])
@@ -233,10 +232,9 @@ def read_sql(comp_name, cnxn, inputs):
     new_occup_df = new_occup_df[new_occup_df['Status'] != 'Affected']
     hazus_results_dict.update({'building_damage_occup_plot': new_occup_df})
 
-    # Join and group results dataframes into subcounty and county dataframes
+    #Join and group results dataframes into subcounty and county dataframes
     hazus_results_dict['censusblock_spatial'] = hazus_results_dict['censusblock_spatial'].reset_index()
-    name_df = hazus_results_dict['censusblock_spatial'].merge(
-        hazus_results_dict['county_fips'], on='Tract').set_index('CensusBlock')
+    name_df = hazus_results_dict['censusblock_spatial'].merge(hazus_results_dict['county_fips'], on='Tract').set_index('CensusBlock')
 
     agg_dict = {
         'EconLoss': 'sum',
@@ -274,9 +272,8 @@ def read_sql(comp_name, cnxn, inputs):
     }
 
     subcounty_results = hazus_results_dict['econ_loss'].join([hazus_results_dict['demographics'],
-                                                              hazus_results_dict['injury'], hazus_results_dict['building_damage'], name_df])
-    county_results = subcounty_results.groupby(
-        subcounty_results['CountyFips']).agg(agg_dict)
+    hazus_results_dict['injury'], hazus_results_dict['building_damage'], name_df])
+    county_results = subcounty_results.groupby(subcounty_results['CountyFips']).agg(agg_dict)
 
     # to keep returns consistent across modules
     damaged_facilities = ''
@@ -295,21 +292,18 @@ def read_sql(comp_name, cnxn, inputs):
 
     return hazus_results_dict, subcounty_results, county_results, damaged_facilities
 
-# Export results dataframes to text files
-
-
+#Export results dataframes to text files
 def to_csv(hazus_results_dict, subcounty_results, county_results, damaged_facilities, inputs):
     tabular_df = {'building_damage_occup':
-                  hazus_results_dict['building_damage_occup'],
-                  'building_damage_bldg_type':
-                  hazus_results_dict['building_damage_bldg_type'],
-                  'censusblock_results': subcounty_results,
-                  'county_results': county_results}
+                    hazus_results_dict['building_damage_occup'],
+                    'building_damage_bldg_type':
+                    hazus_results_dict['building_damage_bldg_type'],
+                    'censusblock_results': subcounty_results,
+                    'county_results': county_results}
     json_output = {}
     for name, dataframe in tabular_df.items():
         if (not dataframe.empty) and (len(dataframe) > 0):
-            path = inputs['output_directory'] + '\\' + \
-                inputs['study_region'] + '\\' + name + '.csv'
+            path = inputs['output_directory'] + '\\' + inputs['study_region'] + '\\' + name + '.csv'
             if inputs['opt_csv']:
                 dataframe.to_csv(path)
             if inputs['opt_json']:
@@ -320,9 +314,7 @@ def to_csv(hazus_results_dict, subcounty_results, county_results, damaged_facili
         with open(inputs['output_directory'] + '/' + inputs['study_region'] + '/' + inputs['study_region'] + '.json', 'w') as j:
             json.dump(json_output, j)
 
-# Create shapefile of tract results table
-
-
+#Create shapefile of tract results table
 def to_shp(inputs, hazus_results_dict, subcounty_results):
     if len(hazus_results_dict['econ_loss']) > 0:
         print('creating geodataframe')
@@ -335,8 +327,7 @@ def to_shp(inputs, hazus_results_dict, subcounty_results):
         # nanFields = ['Trav_SafeOver65', 'Trav_SafeUnder65']
         # for field in nanFields:
         #     gdf[field] = np.where(gdf[field] == np.nan, 0, gdf[field])
-        crs = {'proj': 'longlat', 'ellps': 'WGS84',
-               'datum': 'WGS84', 'no_defs': True}
+        crs={'proj':'longlat', 'ellps':'WGS84', 'datum':'WGS84','no_defs':True}
         gdf.crs = crs
         # hazus_results_dict['hazard'].crs = crs
         print(time() - t0)
@@ -349,8 +340,7 @@ def to_shp(inputs, hazus_results_dict, subcounty_results):
         if inputs['opt_shp']:
             print('saving shapefile')
             t0 = time()
-            gdf.to_file(inputs['output_directory'] + '/' + inputs['study_region'] +
-                        '/' + 'censusblock_results.shp', driver='ESRI Shapefile')
+            gdf.to_file(inputs['output_directory'] + '/' + inputs['study_region'] + '/' + 'censusblock_results.shp', driver='ESRI Shapefile')
             print(time() - t0)
         return gdf
     else:
