@@ -8,11 +8,12 @@ import sys
 import hazpy
 db = hazpy.legacy.HazusDB()
 db.getStudyRegions()
-studyRegion = db.studyRegions.name[0]
+studyRegion = db.studyRegions.name[4]
 db.getHazard(studyRegion)
 hazards = db.getHazardsAnalyzed(studyRegion)
 db.getHazardBoundary(studyRegion)
-db.getEconomicLoss(studyRegion)
+el = db.getEconomicLoss(studyRegion)
+geomdf = db.joinGeometry(el, studyRegion)
 db.getBuildingDamageByOccupancy(studyRegion)
 db.getBuildingDamageByType(studyRegion)
 db.getInjuries(studyRegion)
@@ -21,6 +22,20 @@ db.getDisplacedHouseholds(studyRegion)
 db.getShelterNeeds(studyRegion)
 db.getDebris(studyRegion)
 
+"""
+# API new methods
+
+# GET
+"""
+TS
+    travel time to safety
+    water depth
+EQ
+    inspected, restricted, unsafe
+    PGA by tract
+HU
+    damaged essential facilities
+    peak gust by track
 """
 
 
@@ -47,7 +62,7 @@ class HazusDB():
             comp_name = os.environ['COMPUTERNAME']
             if orm == 'pyodbc':
                 conn = py.connect('Driver=ODBC Driver 11 for SQL Server;SERVER=' +
-                                comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
+                                  comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
             # TODO add sqlalchemy connection
             # if orm == 'sqlalchemy':
             #     conn = create_engine('mssql+pyodbc://SA:Gohazusplus_02@HAZUSPLUSSRVR')
@@ -97,13 +112,12 @@ class HazusDB():
         """
         try:
             exclusionRows = ['master', 'tempdb', 'model',
-                            'msdb', 'syHazus', 'CDMS', 'flTmpDB']
+                             'msdb', 'syHazus', 'CDMS', 'flTmpDB']
             sql = 'SELECT [StateID] FROM [syHazus].[dbo].[syState]'
             queryset = self.query(sql)
-            # for state in self.cursor:
-            #     exclusionRows.append(state[0])
-            for state in queryset:
-                exclusionRows.append(state[0])
+            states = list(queryset['StateID'])
+            for state in states:
+                exclusionRows.append(state)
             sql = 'SELECT * FROM sys.databases'
             df = self.query(sql)
             studyRegions = df[~df['name'].isin(exclusionRows)]['name']
@@ -148,34 +162,10 @@ class HazusDB():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    # API new methods
-
-    # GET
-    """
-    total economic loss by smallest geography
-    building damage by occupancy
-    building damage by structure type
-    injuries and fatalities
-    displaced households
-    short term shelter needs
-    debris
-    hazard
-
-    TS
-        travel time to safety
-        water depth
-    EQ
-        inspected, restricted, unsafe
-        PGA by tract
-    HU
-        damaged essential facilities
-        peak gust by track
-    """
-
     def getEconomicLoss(self, studyRegion):
         """
         Queries the total economic loss for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -186,7 +176,7 @@ class HazusDB():
             sql_dict = {
                 'earthquake': """select Tract as tract, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.[eqTractEconLoss] group by [eqTractEconLoss].Tract""".format(s=studyRegion),
                 'flood': """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.flFRGBSEcLossByTotal group by CensusBlock""".format(s=studyRegion),
-                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0) as EconLoss from {s}.dbo.[huSummaryLoss] group by Tract""".format(s=studyRegion),
+                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) as EconLoss from {s}.dbo.[huSummaryLoss] group by Tract""".format(s=studyRegion),
                 'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=studyRegion)
             }
 
@@ -198,7 +188,7 @@ class HazusDB():
 
     def getBuildingDamageByOccupancy(self, studyRegion):
         """ Queries the building damage by occupancy type for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -253,7 +243,7 @@ class HazusDB():
 
     def getBuildingDamageByType(self, studyRegion):
         """ Queries the building damage by structure type for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -308,7 +298,7 @@ class HazusDB():
 
     def getInjuries(self, studyRegion):
         """ Queries the injuries for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -357,7 +347,7 @@ class HazusDB():
 
     def getFatalities(self, studyRegion):
         """ Queries the fatalities for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -402,7 +392,7 @@ class HazusDB():
 
     def getDisplacedHouseholds(self, studyRegion):
         """ Queries the displaced households for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -426,7 +416,7 @@ class HazusDB():
 
     def getShelterNeeds(self, studyRegion):
         """ Queries the short term shelter needs for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -450,7 +440,7 @@ class HazusDB():
 
     def getDebris(self, studyRegion):
         """ Queries the debris for a study region from the local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -473,7 +463,7 @@ class HazusDB():
 
     def getHazardsAnalyzed(self, studyRegion, returnType='list'):
         """ Queries the local Hazus SQL Server database and returns all hazards analyzed
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
                 returnType: string -- choices: 'list', 'dict'
@@ -481,7 +471,8 @@ class HazusDB():
                 df: pandas dataframe -- a dataframe of the hazards analyzed
         """
         try:
-            sql = "select * from [syHazus].[dbo].[syStudyRegion] where [RegionName] = '" + studyRegion + "'"
+            sql = "select * from [syHazus].[dbo].[syStudyRegion] where [RegionName] = '" + \
+                studyRegion + "'"
             df = self.query(sql)
             hazardsDict = {
                 'earthquake': df['HasEqHazard'][0],
@@ -492,7 +483,8 @@ class HazusDB():
             if returnType == 'dict':
                 return hazardsDict
             if returnType == 'list':
-                hazardsList = list(filter(lambda x: hazardsDict[x], hazardsDict))
+                hazardsList = list(
+                    filter(lambda x: hazardsDict[x], hazardsDict))
                 return hazardsList
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -500,7 +492,7 @@ class HazusDB():
 
     def getHazard(self, studyRegion):
         """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -523,7 +515,7 @@ class HazusDB():
 
     def getCensusTracts(self, studyRegion):
         """ Queries the census tract geometry for a study region in local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -531,7 +523,8 @@ class HazusDB():
         """
         try:
             hazards = self.getHazardsAnalyzed(studyRegion)
-            sql = """SELECT Tract as tract, Shape.STAsText() AS Shape FROM {s}.dbo.hzTract""".format(s=studyRegion)
+            sql = """SELECT Tract as tract, Shape.STAsText() AS Shape FROM {s}.dbo.hzTract""".format(
+                s=studyRegion)
 
             df = self.query(sql)
             return df
@@ -541,7 +534,7 @@ class HazusDB():
 
     def getCensusBlocks(self, studyRegion):
         """ Queries the census block geometry for a study region in local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -549,7 +542,8 @@ class HazusDB():
         """
         try:
             hazards = self.getHazardsAnalyzed(studyRegion)
-            sql = """SELECT CensusBlock as block, Shape.STAsText() AS Shape FROM {s}.dbo.hzCensusBlock""".format(s=studyRegion)
+            sql = """SELECT CensusBlock as block, Shape.STAsText() AS Shape FROM {s}.dbo.hzCensusBlock""".format(
+                s=studyRegion)
 
             df = self.query(sql)
             return df
@@ -559,7 +553,7 @@ class HazusDB():
 
     def getCounties(self, studyRegion):
         """ Queries the county geometry for a study region in local Hazus SQL Server database
-        
+
             Key Argument:
                 studyRegion: string -- the name of the Hazus study region
             Returns:
@@ -567,55 +561,73 @@ class HazusDB():
         """
         try:
             hazards = self.getHazardsAnalyzed(studyRegion)
-            sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(s=studyRegion)
+            sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(
+                s=studyRegion)
 
             df = self.query(sql)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
-        
-        def getEssentialFacilities():
-            """ Queries the call essential facilities for a study region in local Hazus SQL Server database
-            
-                Key Argument:
-                    studyRegion: string -- the name of the Hazus study region
-                Returns:
-                    df: pandas dataframe -- a dataframe of the essential facilities and damages
-            """
-            try:
-                essential_facilities = ['CareFlty', 'EmergencyCtr', 'FireStation',
-                    'PoliceStation', 'School', 'AirportFlty', 'BusFlty', 'FerryFlty',
-                    'HighwayBridge', 'HighwayTunnel', 'LightRailBridge','LightRailFlty',
-                    'LightRailTunnel', 'PortFlty', 'RailFlty', 'RailwayBridge',
-                    'RailwayTunnel', 'Runway', 'ElectricPowerFlty', 'CommunicationFlty',
-                    'NaturalGasFlty', 'OilFlty', 'PotableWaterFlty', 'WasteWaterFlty',
-                    'Dams', 'Military', 'NuclearFlty', 'HighwaySegment', 'LightRailSegment',
-                    'RailwaySegment', 'NaturalGasPl', 'OilPl', 'WasteWaterPl', 'Levees']
 
-                hazards = self.getHazardsAnalyzed(studyRegion)
-                # sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(s=studyRegion)
+    def getEssentialFacilities():
+        """ Queries the call essential facilities for a study region in local Hazus SQL Server database
 
-                df = self.query(sql)
+            Key Argument:
+                studyRegion: string -- the name of the Hazus study region
+            Returns:
+                df: pandas dataframe -- a dataframe of the essential facilities and damages
+        """
+        try:
+            essential_facilities = ['CareFlty', 'EmergencyCtr', 'FireStation',
+                                    'PoliceStation', 'School', 'AirportFlty', 'BusFlty', 'FerryFlty',
+                                    'HighwayBridge', 'HighwayTunnel', 'LightRailBridge', 'LightRailFlty',
+                                    'LightRailTunnel', 'PortFlty', 'RailFlty', 'RailwayBridge',
+                                    'RailwayTunnel', 'Runway', 'ElectricPowerFlty', 'CommunicationFlty',
+                                    'NaturalGasFlty', 'OilFlty', 'PotableWaterFlty', 'WasteWaterFlty',
+                                    'Dams', 'Military', 'NuclearFlty', 'HighwaySegment', 'LightRailSegment',
+                                    'RailwaySegment', 'NaturalGasPl', 'OilPl', 'WasteWaterPl', 'Levees']
+
+            hazards = self.getHazardsAnalyzed(studyRegion)
+            # sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(s=studyRegion)
+
+            df = self.query(sql)
+            return df
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def joinGeometry(self, dataframe, studyRegion):
+        """ Adds geometry to any HazusDB class dataframe with a census block, tract, or county id
+
+            Key Argument:
+                studyRegion: string -- the name of the Hazus study region
+                dataframe: pandas dataframe -- a HazusDB generated dataframe with a fips column named either block, tract, or county
+            Returns:
+                df: pandas dataframe -- a copy of the input dataframe with the geometry added
+        """
+        try:
+            if 'block' in dataframe.columns:
+                geomdf = self.getCensusBlocks(studyRegion)
+                df = geomdf.merge(dataframe, on='block', how='inner')
+                df.columns = [
+                    x if x != 'Shape' else 'geometry' for x in df.columns]
                 return df
-            except:
-                print("Unexpected error:", sys.exc_info()[0])
-                raise
-                
-        def joinGeometry(self, dataframe):
-            """ Adds geometry to any HazusDB class dataframe with a census block, tract, or county id
-            
-                Key Argument:
-                    studyRegion: string -- the name of the Hazus study region
-                Returns:
-                    df: pandas dataframe -- a copy of the input dataframe with the geometry added
-            """
-            try:
-                # hazards = self.getHazardsAnalyzed(studyRegion)
-                # sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(s=studyRegion)
-
-                # df = self.query(sql)
-                # return df
-            except:
-                print("Unexpected error:", sys.exc_info()[0])
-                raise
+            elif 'tract' in dataframe.columns:
+                geomdf = self.getCensusTracts(studyRegion)
+                df = geomdf.merge(dataframe, on='tract', how='inner')
+                df.columns = [
+                    x if x != 'Shape' else 'geometry' for x in df.columns]
+                return df
+            elif 'county' in dataframe.columns:
+                geomdf = self.getCounties(studyRegion)
+                df = geomdf.merge(dataframe, on='county', how='inner')
+                df.columns = [
+                    x if x != 'Shape' else 'geometry' for x in df.columns]
+                return df
+            else:
+                print(
+                    'Unable to find the column name block, tract, or county in the dataframe input')
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise

@@ -91,6 +91,8 @@ test:
     - hazpy.hurricane
     - hazpy.hurricane.modules
     - hazpy.legacy
+    - hazpy.legacy.common
+    - hazpy.legacy.hazusdb
     - hazpy.legacy.exporting
     - hazpy.legacy.exporting.reports
     - hazpy.legacy.exporting.results
