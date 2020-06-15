@@ -23,6 +23,20 @@ db.getShelterNeeds(studyRegion)
 db.getDebris(studyRegion)
 
 """
+# API new methods
+
+# GET
+"""
+TS
+    travel time to safety
+    water depth
+EQ
+    inspected, restricted, unsafe
+    PGA by tract
+HU
+    damaged essential facilities
+    peak gust by track
+"""
 
 
 class HazusDB():
@@ -147,30 +161,6 @@ class HazusDB():
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
-
-    # API new methods
-
-    # GET
-    """
-    total economic loss by smallest geography
-    building damage by occupancy
-    building damage by structure type
-    injuries and fatalities
-    displaced households
-    short term shelter needs
-    debris
-    hazard
-
-    TS
-        travel time to safety
-        water depth
-    EQ
-        inspected, restricted, unsafe
-        PGA by tract
-    HU
-        damaged essential facilities
-        peak gust by track
-    """
 
     def getEconomicLoss(self, studyRegion):
         """
