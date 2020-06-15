@@ -570,7 +570,7 @@ class HazusDB():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    def getEssentialFacilities():
+    def getEssentialFacilities(self, studyRegion):
         """ Queries the call essential facilities for a study region in local Hazus SQL Server database
 
             Key Argument:
@@ -589,7 +589,8 @@ class HazusDB():
                                     'RailwaySegment', 'NaturalGasPl', 'OilPl', 'WasteWaterPl', 'Levees']
 
             hazards = self.getHazardsAnalyzed(studyRegion)
-            # sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(s=studyRegion)
+            sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(
+                s=studyRegion)
 
             df = self.query(sql)
             return df
