@@ -5,7 +5,7 @@ from .modules import EssentialFacilities
 from .modules import GeneralBuildingStock
 from .modules import IndirectEconomicLoss
 from .modules import TransportationSystems
-from .modules import UserDefinedStructures
+from .modules import UDF
 from .modules import UtilitySystems
 from .modules import Vehicles
 from .modules import WhatIf
@@ -32,7 +32,7 @@ class Analysis():
         self.generalBuildingStock = GeneralBuildingStock()
         self.indirectEconomicLoss = IndirectEconomicLoss()
         self.transportationSystems = TransportationSystems()
-        self.userDefinedStructures = UserDefinedStructures()
+        self.UDF = UDF()
         self.utilitySystems = UtilitySystems()
         self.vehicles = Vehicles()
         self.whatIf = WhatIf()

@@ -15,3 +15,14 @@ __all__ = []
 
 from .exporting import export, createExportObj, Exporting
 from .common import *
+from .hazusdb import *
+from .studyregion import *
+
+"""
+import hazpy
+db = hazpy.legacy.HazusDB()
+sr = hazpy.legacy.StudyRegion()
+import hazpy
+db = hazpy.legacy.HazusDB()
+sr = hazpy.legacy.StudyRegion('eq_test_AK')
+"""
