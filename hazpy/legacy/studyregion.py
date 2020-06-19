@@ -1,6 +1,15 @@
 import os
 import pandas as pd
+import geopandas as gpd
 import pyodbc as py
+from shapely.wkt import loads
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.polygon import Polygon
+# TODO check if all geojsons are oriented correctly; if not, apply orient
+# try:
+#     from shapely.ops import orient  # version >=1.7a2
+# except:
+#     from shapely.geometry.polygon import orient
 from sqlalchemy import create_engine
 import sys
 
@@ -8,7 +17,7 @@ import sys
 class StudyRegion():
     """ Creates a study region object using an existing study region in the local Hazus database
 
-        Keyword Arguments: 
+        Keyword Arguments:
             studyRegion: str -- the name of the study region
     """
 
@@ -39,7 +48,7 @@ class StudyRegion():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    def __query(self, sql):
+    def query(self, sql):
         """Performs a SQL query on the Hazus SQL Server database
 
             Keyword Arguments:
@@ -63,7 +72,7 @@ class StudyRegion():
         """
         try:
             sql = 'SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % self.name
-            df = self.__query(sql)
+            df = self.query(sql)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -85,7 +94,8 @@ class StudyRegion():
                 'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
+            df = StudyRegionDataFrame(self, df)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -148,7 +158,7 @@ class StudyRegion():
                         GROUP BY LEFT({s}.dbo.tsHazNsiGbs.NsiID, 3)""".format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -201,7 +211,7 @@ class StudyRegion():
                         GROUP BY eqBldgType, [Description]""".format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -248,7 +258,7 @@ class StudyRegion():
                                 group by cdf.CensusBlock""".format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -291,7 +301,7 @@ class StudyRegion():
                                 group by cdf.CensusBlock""".format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -313,7 +323,7 @@ class StudyRegion():
                 'tsunami': """ """.format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -335,7 +345,7 @@ class StudyRegion():
                 'tsunami': """ """.format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -356,7 +366,7 @@ class StudyRegion():
                 'tsunami': """ """.format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -373,7 +383,7 @@ class StudyRegion():
         try:
             sql = "select * from [syHazus].[dbo].[syStudyRegion] where [RegionName] = '" + \
                 self.name + "'"
-            df = self.__query(sql)
+            df = self.query(sql)
             hazardsDict = {
                 'earthquake': df['HasEqHazard'][0],
                 'hurricane': df['HasHuHazard'][0],
@@ -405,58 +415,7 @@ class StudyRegion():
                 'tsunami': """ """.format(s=self.name)
             }
 
-            df = self.__query(sql_dict[self.hazards[0]])
-            return df
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def getCensusTracts(self):
-        """ Queries the census tract geometry for a study region in local Hazus SQL Server database
-
-            Returns:
-                df: pandas dataframe -- a dataframe of the census geometry and fips codes
-        """
-        try:
-
-            sql = """SELECT Tract as tract, Shape.STAsText() AS Shape FROM {s}.dbo.hzTract""".format(
-                s=self.name)
-
-            df = self.__query(sql)
-            return df
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def getCensusBlocks(self):
-        """ Queries the census block geometry for a study region in local Hazus SQL Server database
-
-            Returns:
-                df: pandas dataframe -- a dataframe of the census geometry and fips codes
-        """
-        try:
-
-            sql = """SELECT CensusBlock as block, Shape.STAsText() AS Shape FROM {s}.dbo.hzCensusBlock""".format(
-                s=self.name)
-
-            df = self.__query(sql)
-            return df
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def getCounties(self):
-        """ Queries the county geometry for a study region in local Hazus SQL Server database
-
-            Returns:
-                df: pandas dataframe -- a dataframe of the census geometry and fips codes
-        """
-        try:
-
-            sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(
-                s=self.name)
-
-            df = self.__query(sql)
+            df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -481,13 +440,76 @@ class StudyRegion():
             sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(
                 s=self.name)
 
-            df = self.__query(sql)
+            df = self.query(sql)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    def joinGeometry(self, dataframe):
+
+class StudyRegionDataFrame(pd.DataFrame):
+
+    def __init__(self, studyRegion, df):
+        super().__init__(df)
+        try:
+            self.studyRegion = studyRegion.name
+        except:
+            self.studyRegion = studyRegion.studyRegion
+        self.conn = studyRegion.conn
+        self.query = studyRegion.query
+
+    def addCensusTracts(self):
+        """ Queries the census tract geometry for a study region in local Hazus SQL Server database
+
+            Returns:
+                df: pandas dataframe -- a dataframe of the census geometry and fips codes
+        """
+        try:
+
+            sql = """SELECT Tract as tract, Shape.STAsText() AS Shape FROM {s}.dbo.hzTract""".format(
+                s=self.studyRegion)
+
+            df = self.query(sql)
+            return StudyRegionDataFrame(self, df)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def addCensusBlocks(self):
+        """ Queries the census block geometry for a study region in local Hazus SQL Server database
+
+            Returns:
+                df: pandas dataframe -- a dataframe of the census geometry and fips codes
+        """
+        try:
+
+            sql = """SELECT CensusBlock as block, Shape.STAsText() AS Shape FROM {s}.dbo.hzCensusBlock""".format(
+                s=self.studyRegion)
+
+            df = self.query(sql)
+            return StudyRegionDataFrame(self, df)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def addCounties(self):
+        """ Queries the county geometry for a study region in local Hazus SQL Server database
+
+            Returns:
+                df: pandas dataframe -- a dataframe of the census geometry and fips codes
+        """
+        try:
+
+            sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(
+                s=self.studyRegion)
+
+            df = self.query(sql)
+            return StudyRegionDataFrame(self, df)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def addGeometry(self):
         """ Adds geometry to any HazusDB class dataframe with a census block, tract, or county id
 
             Key Argument:
@@ -496,27 +518,67 @@ class StudyRegion():
                 df: pandas dataframe -- a copy of the input dataframe with the geometry added
         """
         try:
-            if 'block' in dataframe.columns:
-                geomdf = self.getCensusBlocks()
-                df = geomdf.merge(dataframe, on='block', how='inner')
+            if 'block' in self.columns:
+                geomdf = self.addCensusBlocks()
+                df = geomdf.merge(self, on='block', how='inner')
                 df.columns = [
                     x if x != 'Shape' else 'geometry' for x in df.columns]
-                return df
-            elif 'tract' in dataframe.columns:
-                geomdf = self.getCensusTracts()
-                df = geomdf.merge(dataframe, on='tract', how='inner')
+                return StudyRegionDataFrame(self, df)
+            elif 'tract' in self.columns:
+                geomdf = self.addCensusTracts()
+                df = geomdf.merge(self, on='tract', how='inner')
                 df.columns = [
                     x if x != 'Shape' else 'geometry' for x in df.columns]
-                return df
-            elif 'county' in dataframe.columns:
-                geomdf = self.getCounties()
-                df = geomdf.merge(dataframe, on='county', how='inner')
+                return StudyRegionDataFrame(self, df)
+            elif 'county' in self.columns:
+                geomdf = self.addCounties()
+                df = geomdf.merge(self, on='county', how='inner')
                 df.columns = [
                     x if x != 'Shape' else 'geometry' for x in df.columns]
-                return df
+                return StudyRegionDataFrame(self, df)
             else:
                 print(
                     'Unable to find the column name block, tract, or county in the dataframe input')
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    def toCSV(self, path):
+        self.to_csv(path, index=False)
+
+    def toShapefile(self, path):
+        try:
+            if 'geometry' not in self.columns:
+                self = self.addGeometry()
+            self['geometry'] = self['geometry'].apply(
+                lambda x: loads(x))
+            gdf = gpd.GeoDataFrame(self, geometry='geometry')
+            gdf.to_file(path, driver='ESRI Shapefile')
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def toGeoJSON(self, path):
+        try:
+            if 'geometry' not in self.columns:
+                self = self.addGeometry()
+            self['geometry'] = self['geometry'].apply(lambda x: loads(x))
+            gdf = gpd.GeoDataFrame(self, geometry='geometry')
+            for index in range(len(gdf['geometry'])):
+                if type(gdf['geometry'][index]) == Polygon:
+                    gdf['geometry'][index] = MultiPolygon(
+                        [gdf['geometry'][index]])
+            # gdf['geometry'].apply(orient, args=(1,))
+            gdf.to_file(path, driver='GeoJSON')
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+
+"""
+def essentialFacilities
+def transportation
+def agriculture
+def vehicles?
+def GBS?
+"""

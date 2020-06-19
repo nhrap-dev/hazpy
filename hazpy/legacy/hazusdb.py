@@ -3,26 +3,8 @@ import pandas as pd
 import pyodbc as py
 from sqlalchemy import create_engine
 import sys
+import urllib
 
-""" testing -------------
-import hazpy
-db = hazpy.legacy.HazusDB()
-db.getStudyRegions()
-studyRegion = db.studyRegions.name[4]
-db.getHazard(studyRegion)
-hazards = db.getHazardsAnalyzed(studyRegion)
-db.getHazardBoundary(studyRegion)
-el = db.getEconomicLoss(studyRegion)
-geomdf = db.joinGeometry(el, studyRegion)
-db.getBuildingDamageByOccupancy(studyRegion)
-db.getBuildingDamageByType(studyRegion)
-db.getInjuries(studyRegion)
-db.getFatalities(studyRegion)
-db.getDisplacedHouseholds(studyRegion)
-db.getShelterNeeds(studyRegion)
-db.getDebris(studyRegion)
-
-"""
 # API new methods
 
 # GET
@@ -54,7 +36,7 @@ class HazusDB():
         """ Creates a connection object to the local Hazus SQL Server database
 
             Key Argument:
-                orm: string -- type of connection to return (choices: 'pyodbc', 'sqlalchemy')
+                orm: string - - type of connection to return (choices: 'pyodbc', 'sqlalchemy')
             Returns:
                 conn: pyodbc connection
         """
@@ -144,3 +126,58 @@ class HazusDB():
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    class EditSession(pd.DataFrame):
+        """Performs a SQL query on the Hazus SQL Server database
+
+            Keyword Arguments:
+                database: str -- the database or study region name
+                schema: str -- the schema name, typically 'dbo'
+                table: str -- the table name you want to edit
+
+            Returns:
+                df: pandas dataframe -- an editable dataframe. Use the save() method when finished.
+        """
+
+        def __init__(self, database, schema, table):
+            try:
+                super().__init__()
+                self.database = database
+                self.schema = schema
+                self.table = table
+
+                comp_name = os.environ['COMPUTERNAME']
+                server = comp_name+"\HAZUSPLUSSRVR"
+                user = 'SA'
+                password = 'Gohazusplus_02'
+                driver = 'ODBC Driver 13 for SQL Server'
+                # driver = 'ODBC Driver 11 for SQL Server'
+                engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(
+                    "DRIVER={0};SERVER={1};PORT=1433;DATABASE={2};UID={3};PWD={4};TDS_Version=8.0;".format(driver, server, database, user, password))))
+                # self.engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus("DRIVER={4};SERVER={0};PORT=1433;DATABASE={1};UID={2};PWD={3};TDS_Version=8.0;".format(driserver, database, user, password, driver))))
+                self.conn = engine.connect()
+
+                sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'"+table+"'"
+                columns = list(pd.read_sql(sql, con=self.conn)['COLUMN_NAME'])
+                columns = ['['+x+']' for x in columns]
+                columns = ', '.join(columns)
+                if '[Shape]' in columns:
+                    columns = columns.replace(
+                        '[Shape]', '[Shape].STAsText() as Shape')
+
+                sql = 'select ' + columns + \
+                    ' from ['+database+'].['+schema+'].['+table+']'
+                df = pd.read_sql(sql, con=self.conn)
+                super().__init__(df)
+            except:
+                print("Unexpected error:", sys.exc_info()[0])
+                raise
+
+        def save(self, replace=True):
+            if replace:
+                ifExists = 'replace'
+            else:
+                ifExists = 'fail'
+
+            self.to_sql(self.table, schema=self.schema,
+                        con=self.conn, index=False, if_exists=ifExists)
