@@ -5,10 +5,11 @@ import pyodbc as py
 from shapely.wkt import loads
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
-try:
-    from shapely.ops import orient  # version >=1.7a2
-except:
-    from shapely.geometry.polygon import orient
+# TODO check if all geojsons are oriented correctly; if not, apply orient
+# try:
+#     from shapely.ops import orient  # version >=1.7a2
+# except:
+#     from shapely.geometry.polygon import orient
 from sqlalchemy import create_engine
 import sys
 
