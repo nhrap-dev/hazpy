@@ -12,6 +12,7 @@ from shapely.geometry.polygon import Polygon
 #     from shapely.geometry.polygon import orient
 from sqlalchemy import create_engine
 import sys
+from functools import reduce
 
 
 class StudyRegion():
@@ -95,8 +96,7 @@ class StudyRegion():
             }
 
             df = self.query(sql_dict[self.hazards[0]])
-            df = StudyRegionDataFrame(self, df)
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -110,6 +110,46 @@ class StudyRegion():
         """
         totalLoss = self.getEconomicLoss()['EconLoss'].sum()
         return totalLoss
+
+    def getBuildingDamage(self):
+        try:
+            sql_dict = {
+                'earthquake': """SELECT Tract as tract, SUM(ISNULL(PDsNoneBC, 0))
+                        As NoDamage, SUM(ISNULL(PDsSlightBC, 0)) AS Affected, SUM(ISNULL(PDsModerateBC, 0))
+                        AS Minor, SUM(ISNULL(PDsExtensiveBC, 0)) AS Major,
+                        SUM(ISNULL(PDsCompleteBC, 0)) AS Destroyed FROM [{s}].dbo.[eqTractDmg]
+                        WHERE DmgMechType = 'STR' group by Tract
+                """.format(s=self.name),
+                'flood': """SELECT CensusBlock as block, SUM(ISNULL(TotalLoss, 0))
+                        AS TotalLoss, SUM(ISNULL(BuildingLoss, 0)) AS BldgLoss,
+                        SUM(ISNULL(ContentsLoss, 0)) AS ContLoss
+                        FROM [{s}].dbo.[flFRGBSEcLossBySOccup] GROUP BY CensusBlock
+                        """.format(s=self.name),
+                'hurricane': """SELECT Tract AS tract,
+                        SUM(ISNULL(NonDamage, 0)) As NoDamage, SUM(ISNULL(MinDamage, 0)) AS Affected,
+                        SUM(ISNULL(ModDamage, 0)) AS Minor, SUM(ISNULL(SevDamage, 0)) AS Major,
+                        SUM(ISNULL(ComDamage, 0)) AS Destroyed FROM [{s}].dbo.[huSummaryDamage]
+                        WHERE GenBldgOrGenOcc IN('COM', 'AGR', 'GOV', 'EDU', 'REL','RES', 'IND')
+                        GROUP BY Tract""".format(s=self.name),
+                'tsunami': """select CBFips as block,
+                        count(case when BldgLoss/(ValStruct+ValCont) <=0.05 then 1 end) as Affected,
+                        count(case when BldgLoss/(ValStruct+ValCont) > 0.05 and BldgLoss/(ValStruct+ValCont) <=0.3 then 1 end) as Minor,
+                        count(case when BldgLoss/(ValStruct+ValCont) > 0.3 and BldgLoss/(ValStruct+ValCont) <=0.5 then 1 end) as Major,
+                        count(case when BldgLoss/(ValStruct+ValCont) >0.5 then 1 end) as Destroyed
+                        from (select NsiID, ValStruct, ValCont  from {s}.dbo.tsHazNsiGbs) haz
+                            left join (select NsiID, CBFips from {s}.dbo.tsNsiGbs) gbs
+                            on haz.NsiID = gbs.NsiID
+                            left join (select NsiID, BldgLoss from {s}.dbo.tsFRNsiGbs) frn
+                            on haz.NsiID = frn.NsiID
+                            group by CBFips""".format(s=self.name)
+
+            }
+
+            df = self.query(sql_dict[self.hazards[0]])
+            return StudyRegionDataFrame(self, df)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
 
     def getBuildingDamageByOccupancy(self):
         """ Queries the building damage by occupancy type for a study region from the local Hazus SQL Server database
@@ -225,17 +265,19 @@ class StudyRegion():
         """
         try:
 
+            # NOTE injuries not available for flood model - placeholder below
+            # NOTE injuries not available for hurricane model - placeholder below
             sql_dict = {
                 'earthquake': """SELECT Tract as tract, SUM(CASE WHEN CasTime = 'N' THEN Level1Injury 
-                        ELSE 0 END) AS NightLevel1, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level2Injury ELSE 0 END) AS NightLevel2, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level3Injury ELSE 0 END) AS NiteLevel3, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level1Injury ELSE 0 END) AS DayLevel1,  SUM(CASE WHEN CasTime = 'D' 
-                        THEN Level2Injury ELSE 0 END) AS DayLevel2, SUM(CASE WHEN CasTime = 'D' 
-                        THEN Level3Injury ELSE 0 END) AS DayLevel3 FROM {s}.dbo.[eqTractCasOccup] 
+                        ELSE 0 END) AS Injury_NightLevel1, SUM(CASE WHEN CasTime = 'N' 
+                        THEN Level2Injury ELSE 0 END) AS Injury_NightLevel2, SUM(CASE WHEN CasTime = 'N' 
+                        THEN Level3Injury ELSE 0 END) AS Injury_NightLevel3, SUM(CASE WHEN CasTime = 'N' 
+                        THEN Level1Injury ELSE 0 END) AS Injury_DayLevel1,  SUM(CASE WHEN CasTime = 'D' 
+                        THEN Level2Injury ELSE 0 END) AS Injury_DayLevel2, SUM(CASE WHEN CasTime = 'D' 
+                        THEN Level3Injury ELSE 0 END) AS Injury_DayLevel3 FROM {s}.dbo.[eqTractCasOccup] 
                         WHERE CasTime IN ('N', 'D') AND InOutTot = 'Tot' GROUP BY Tract""".format(s=self.name),
-                'flood': """ """.format(s=self.name),
-                'hurricane': """ """.format(s=self.name),
+                'flood': None,
+                'hurricane': None,
                 'tsunami': """SELECT
                         cdf.CensusBlock as block,
                         SUM(cdf.InjuryDayTotal) as InjuryDayFair,
@@ -257,8 +299,12 @@ class StudyRegion():
                                     ON cdf.CensusBlock = cnp.CensusBlock
                                 group by cdf.CensusBlock""".format(s=self.name)
             }
-
-            df = self.query(sql_dict[self.hazards[0]])
+            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'hurricane':
+                df = pd.DataFrame(columns=['tract', 'Injuries'])
+            elif (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'flood':
+                df = pd.DataFrame(columns=['block', 'Injuries'])
+            else:
+                df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -272,21 +318,23 @@ class StudyRegion():
         """
         try:
 
+            # NOTE fatatilies not available for flood model - placeholder below
+            # NOTE fatatilies not available for hurricane model - placeholder below
             sql_dict = {
                 'earthquake': """SELECT Tract as tract, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level4Injury ELSE 0 End) AS Night, SUM(CASE WHEN CasTime = 'D' 
-                        THEN Level4Injury ELSE 0 End) AS Day FROM {s}.dbo.[eqTractCasOccup] 
+                        THEN Level4Injury ELSE 0 End) AS Fatalities_Night, SUM(CASE WHEN CasTime = 'D' 
+                        THEN Level4Injury ELSE 0 End) AS Fatalities_Day FROM {s}.dbo.[eqTractCasOccup] 
                         WHERE CasTime IN ('N', 'D') AND InOutTot = 'Tot' GROUP BY Tract""".format(s=self.name),
-                'flood': """ """.format(s=self.name),
-                'hurricane': """ """.format(s=self.name),
+                'flood': None,
+                'hurricane': None,
                 'tsunami': """SELECT
                         cdf.CensusBlock as block,
-                        SUM(cdf.FatalityDayTotal) As FatalityDayFair,
-                        SUM(cdg.FatalityDayTotal) As FatalityDayGood,
-                        SUM(cdp.FatalityDayTotal) As FatalityDayPoor,
-                        SUM(cnf.FatalityNightTotal) As FatalityNightFair,
-                        SUM(cng.FatalityNightTotal) As FatalityNightGood,
-                        SUM(cnp.FatalityNightTotal) As FatalityNightPoor
+                        SUM(cdf.FatalityDayTotal) As Fatalities_DayFair,
+                        SUM(cdg.FatalityDayTotal) As Fatalities_DayGood,
+                        SUM(cdp.FatalityDayTotal) As Fatalities_DayPoor,
+                        SUM(cnf.FatalityNightTotal) As Fatalities_NightFair,
+                        SUM(cng.FatalityNightTotal) As Fatalities_NightGood,
+                        SUM(cnp.FatalityNightTotal) As Fatalities_NightPoor
                             FROM {s}.dbo.tsCasualtyDayFair as cdf
                                 FULL JOIN {s}.dbo.tsCasualtyDayGood as cdg
                                     ON cdf.CensusBlock = cdg.CensusBlock
@@ -301,7 +349,12 @@ class StudyRegion():
                                 group by cdf.CensusBlock""".format(s=self.name)
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'hurricane':
+                df = pd.DataFrame(columns=['tract', 'Fatalities'])
+            elif (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'flood':
+                df = pd.DataFrame(columns=['block', 'Fatalities'])
+            else:
+                df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -316,14 +369,18 @@ class StudyRegion():
         try:
 
             # TODO check to see if flood is displaced households or population -- database says pop
+            # NOTE displaced households not available in tsunami model - placeholder below
             sql_dict = {
                 'earthquake': """select Tract as tract, SUM(DisplacedHouseholds) as DisplacedHouseholds from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, SUM(DisplacedPop) as DisplacedHouseholds from {s}.dbo.flFRShelter group by CensusBlock""".format(s=self.name),
                 'hurricane': """select TRACT as tract, SUM(DISPLACEDHOUSEHOLDS) as DisplacedHouseholds from {s}.dbo.huShelterResultsT group by Tract""".format(s=self.name),
-                'tsunami': """ """.format(s=self.name)
+                'tsunami': None
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'tsunami':
+                df = pd.DataFrame(columns=['block', 'DisplacedHouseholds'])
+            else:
+                df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -337,15 +394,18 @@ class StudyRegion():
         """
         try:
 
+            # NOTE shelter needs aren't available for the tsunami model - placeholder below
             sql_dict = {
                 'earthquake': """select Tract as tract, SUM(ShortTermShelter) as ShelterNeeds from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, SUM(ShortTermNeeds) as ShelterNeeds from {s}.dbo.flFRShelter group by CensusBlock""".format(s=self.name),
                 'hurricane': """select TRACT as tract, SUM(SHORTTERMSHELTERNEEDS) as ShelterNeeds from {s}.dbo.huShelterResultsT group by Tract
                         """.format(s=self.name),
-                'tsunami': """ """.format(s=self.name)
+                'tsunami': None
             }
-
-            df = self.query(sql_dict[self.hazards[0]])
+            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'tsunami':
+                df = pd.DataFrame(columns=['block', 'ShelterNeeds'])
+            else:
+                df = self.query(sql_dict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -358,12 +418,12 @@ class StudyRegion():
                 df: pandas dataframe -- a dataframe of debris
         """
         try:
-
+            # NOTE debris not available for tsunami model - placeholder below
             sql_dict = {
                 'earthquake': """select Tract as tract, SUM(DebrisW) as DebrisBW, SUM(DebrisS) as DebrisCS, SUM(DebrisTotal) as DebrisTotal from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, (SUM(FinishTons) * 2000) as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name),
                 'hurricane': """select Tract as tract, SUM(BRICKANDWOOD) as DebrisBW, SUM(CONCRETEANDSTEEL) as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT group by Tract""".format(s=self.name),
-                'tsunami': """ """.format(s=self.name)
+                'tsunami': """select CensusBlock as block, (SUM(FinishTons) * 2000) as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name)
             }
 
             df = self.query(sql_dict[self.hazards[0]])
@@ -442,6 +502,66 @@ class StudyRegion():
 
             df = self.query(sql)
             return df
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def getDemographics(self):
+        """Summarizes demographics at the lowest level of geography
+
+            Returns:
+                df: pandas dataframe -- a dataframe of the summarized demographics
+        """
+        try:
+
+            sql_dict = {
+                'earthquake': """select Tract as tract, Population, Households FROM {s}.dbo.[hzDemographicsT]""".format(s=self.name),
+                'flood': """select CensusBlock as block, Population, Households FROM {s}.dbo.[hzDemographicsB]""".format(s=self.name),
+                'hurricane': """select Tract as tract, Population, Households FROM {s}.dbo.[hzDemographicsT]""".format(s=self.name),
+                'tsunami': """select CensusBlock as block, Population, Households FROM {s}.dbo.[hzDemographicsB]""".format(s=self.name)
+            }
+
+            df = self.query(sql_dict[self.hazards[0]])
+            return df
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def getResults(self):
+        """ Summarizes results at the lowest level of geography
+
+            Returns:
+                df: pandas dataframe -- a dataframe of the summarized results
+        """
+        try:
+            economicLoss = self.getEconomicLoss()
+            buildingDamage = self.getBuildingDamage()
+            fatalities = self.getFatalities()
+            injuries = self.getInjuries()
+            shelterNeeds = self.getShelterNeeds()
+            displacedHouseholds = self.getDisplacedHouseholds()
+            debris = self.getDebris()
+            demographics = self.getDemographics()
+
+            dataframeList = [economicLoss, buildingDamage, fatalities,
+                             injuries, shelterNeeds, displacedHouseholds, debris, demographics]
+            if 'block' in economicLoss.columns:
+                dfMerged = reduce(lambda left, right: pd.merge(
+                    left, right, on=['block'], how='outer'), dataframeList)
+            elif 'tract' in economicLoss.columns:
+                dfMerged = reduce(lambda left, right: pd.merge(
+                    left, right, on=['tract'], how='outer'), dataframeList)
+            elif 'county' in economicLoss.columns:
+                dfMerged = reduce(lambda left, right: pd.merge(
+                    left, right, on=['county'], how='outer'), dataframeList)
+
+            df = dfMerged[dfMerged['EconLoss'].notnull()]
+            # Find the columns where each value is null
+            empty_cols = [col for col in df.columns if df[col].isnull().all()]
+            # Drop these columns from the dataframe
+            df.drop(empty_cols, axis=1, inplace=True)
+
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
