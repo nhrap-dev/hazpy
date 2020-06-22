@@ -448,6 +448,13 @@ class StudyRegion():
 
 
 class StudyRegionDataFrame(pd.DataFrame):
+    """ Intializes a study region dataframe class - A pandas dataframe extended with extra methods
+
+        Key Argument:
+            studyRegion: str -- the name of the study region database
+            df: pandas dataframe -- a dataframe to extend as a StudyRegionDataFrame
+
+    """
 
     def __init__(self, studyRegion, df):
         super().__init__(df)
@@ -544,9 +551,19 @@ class StudyRegionDataFrame(pd.DataFrame):
             raise
 
     def toCSV(self, path):
+        """ Exports a StudyRegionDataFrame to a CSV
+
+            Key Argument:
+                path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.csv')
+        """
         self.to_csv(path, index=False)
 
     def toShapefile(self, path):
+        """ Exports a StudyRegionDataFrame to an Esri Shapefile
+
+            Key Argument:
+                path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.shp')
+        """
         try:
             if 'geometry' not in self.columns:
                 self = self.addGeometry()
@@ -559,6 +576,11 @@ class StudyRegionDataFrame(pd.DataFrame):
             raise
 
     def toGeoJSON(self, path):
+        """ Exports a StudyRegionDataFrame to a web compatible GeoJSON
+
+            Key Argument:
+                path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.geojson')
+        """
         try:
             if 'geometry' not in self.columns:
                 self = self.addGeometry()

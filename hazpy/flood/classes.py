@@ -9,23 +9,28 @@ from .modules import UDF
 from .modules import UtilitySystems
 from .modules import Vehicles
 from .modules import WhatIf
+from .modules import UDF
+
 
 class Flood(Base):
     """
     Intialize a flood module instance
-     
+
     Keyword arguments: \n
 
     """
+
     def __init__(self):
         super().__init__()
 
         self.analysis = Analysis()
-        self.test = 'abc'
+        self.UDF = UDF.UDF()
+        self.test = 'coconut'
+
 
 class Analysis():
     def __init__(self):
-        
+
         self.agriculture = Agriculture()
         self.directSocialLosses = DirectSocialLosses()
         self.essentialFacilities = EssentialFacilities()

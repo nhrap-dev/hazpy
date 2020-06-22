@@ -128,11 +128,11 @@ class HazusDB():
             raise
 
     class EditSession(pd.DataFrame):
-        """Performs a SQL query on the Hazus SQL Server database
+        """Creates an edit session for a Hazus database table
 
             Keyword Arguments:
-                database: str -- the database or study region name
-                schema: str -- the schema name, typically 'dbo'
+                database: str -- the database or study region name \n
+                schema: str -- the schema name, typically 'dbo' \n
                 table: str -- the table name you want to edit
 
             Returns:
