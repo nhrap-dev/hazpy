@@ -723,4 +723,12 @@ def transportation
 def agriculture
 def vehicles?
 def GBS?
+
+import hazpy
+path = 'C:/Users/jrainesi/Downloads/test/'
+l = ['eq_test_AK', 'ts_test', 'hu_test', 'fl_test']
+for i in l:
+    sr = hazpy.legacy.StudyRegion(i)
+    r = sr.getResults()
+    r.toCSV(path + i + '.csv')
 """

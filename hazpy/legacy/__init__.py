@@ -17,6 +17,7 @@ from .exporting import export, createExportObj, Exporting
 from .common import *
 from .hazusdb import *
 from .studyregion import *
+from .report import *
 
 """
 import hazpy
