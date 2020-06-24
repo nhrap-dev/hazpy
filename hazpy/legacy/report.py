@@ -1,6 +1,15 @@
 from xhtml2pdf import pisa
 import os
 import pandas as pd
+
+from matplotlib import pyplot as plt
+import matplotlib.patheffects as pe
+from matplotlib.collections import PatchCollection
+from matplotlib.patches import Polygon
+from matplotlib.colors import LinearSegmentedColormap
+import shapely
+from jenkspy import jenks_breaks as nb
+import numpy as np
 """
 ------testing-----------
 

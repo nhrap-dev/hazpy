@@ -14,6 +14,12 @@ from sqlalchemy import create_engine
 import sys
 from functools import reduce
 
+import rasterio as rio
+from rasterio import features
+from jenkspy import jenks_breaks as nb
+import numpy as np
+from matplotlib import pyplot as plt
+
 
 class StudyRegion():
     """ Creates a study region object using an existing study region in the local Hazus database
@@ -433,6 +439,7 @@ class StudyRegion():
             raise
 
     def getHazardsAnalyzed(self, returnType='list'):
+        # TODO fix this when multiple hazards are available
         """ Queries the local Hazus SQL Server database and returns all hazards analyzed
 
             Key Argument:
@@ -460,23 +467,130 @@ class StudyRegion():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    def getHazard(self):
+    def getHazardDictionary(self):
         """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
 
             Returns:
-                df: pandas dataframe -- a dataframe of the hazard
+                hazardDict: dictionary<geopandas geodataframe> -- a dictionary containing geodataframes of the hazard(s)
         """
         try:
+            hazard = self.hazards[0]
+            hazardDict = {}
+            if hazard == 'earthquake':
+                path = 'C:/HazusData/Regions/'+self.name+'/shape/pga.shp'
+                gdf = gpd.read_file(path)
+                hazardDict['Peak Ground Acceleration'] = gdf
+            if hazard == 'flood':
+                sql = """SELECT [StudyCaseName] FROM {s}.[dbo].[flStudyCase]""".format(
+                    s=self.name)
+                scenarios = self.query(sql)
+                for scenario in scenarios['StudyCaseName']:
+                    paths = {
+                        'Deterministic Riverine '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Riverine/Depth/mix0/w001001.adf',
+                        'Deterministic Coastal '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Coastal/Depth/mix0/w001001.adf',
+                        'Probabilistic Riverine 5 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Riverine/Depth/rpd5/w001001.adf',
+                        'Probabilistic Riverine 10 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Riverine/Depth/rpd10/w001001.adf',
+                        'Probabilistic Riverine 25 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Riverine/Depth/rpd25/w001001.adf',
+                        'Probabilistic Riverine 50 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Riverine/Depth/rpd50/w001001.adf',
+                        'Probabilistic Riverine 100 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Riverine/Depth/rpd100/w001001.adf',
+                        'Probabilistic Riverine 500 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Riverine/Depth/rpd500/w001001.adf',
+                        'Probabilistic Coastal 5 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Coastal/Depth/rpd5/w001001.adf',
+                        'Probabilistic Coastal 10 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Coastal/Depth/rpd10/w001001.adf',
+                        'Probabilistic Coastal 25 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Coastal/Depth/rpd25/w001001.adf',
+                        'Probabilistic Coastal 50 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Coastal/Depth/rpd50/w001001.adf',
+                        'Probabilistic Coastal 100 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Coastal/Depth/rpd100/w001001.adf',
+                        'Probabilistic Coastal 500 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        scenario+'/Coastal/Depth/rpd500/w001001.adf',
+                    }
+                    for key in paths.keys():
+                        try:
+                            raster = rio.open(paths[key])
+                            affine = raster.meta.get('transform')
+                            crs = raster.meta.get('crs')
+                            band = raster.read(1)
+                            # band = np.where(band < 0, 0, band)
 
-            sql_dict = {
-                'earthquake': """SELECT Tract as tract, PGA from {s}.dbo.[eqTract]""".format(s=self.name),
-                'flood': """ """.format(s=self.name),
-                'hurricane': """ """.format(s=self.name),
-                'tsunami': """ """.format(s=self.name)
-            }
+                            geoms = []
+                            for geometry, value in features.shapes(band, transform=affine):
+                                try:
+                                    if value >= 1:
+                                        result = {'properties': {
+                                            'PARAMVALUE': value}, 'geometry': geometry}
+                                    geoms.append(result)
+                                except:
+                                    pass
+                            gdf = gpd.GeoDataFrame.from_features(geoms)
+                            hazardDict[key] = gdf
+                        except:
+                            pass
+            if hazard == 'hurricane':
+                try:
+                    queries = {
+                        'Deterministic Wind Speeds': 'SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults]'.format(
+                            s=self.name),
+                        'Probabilistic Wind Speeds 10': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr > 0'.format(
+                            s=self.name),
+                        'Probabilistic Wind Speeds 20': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr > 0'.format(
+                            s=self.name),
+                        'Probabilistic Wind Speeds 50': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr > 0'.format(
+                            s=self.name),
+                        'Probabilistic Wind Speeds 100': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr > 0'.format(
+                            s=self.name),
+                        'Probabilistic Wind Speeds 200': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr > 0'.format(
+                            s=self.name),
+                        'Probabilistic Wind Speeds 500': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr > 0'.format(
+                            s=self.name),
+                        'Probabilistic Wind Speeds 1000': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr > 0'.format(
+                            s=self.name)
+                    }
+                    for key in queries.keys():
+                        try:
+                            df = self.query(queries[key])
+                            if len(df) > 0:
+                                sdf = StudyRegionDataFrame(self, df)
+                                sdf = sdf.addGeometry()
+                                sdf['geometry'] = sdf['geometry'].apply(loads)
+                                gdf = gpd.GeoDataFrame(
+                                    sdf, geometry='geometry')
+                                hazardDict[key] = gdf
+                        except:
+                            pass
+                except:
+                    pass
 
-            df = self.query(sql_dict[self.hazards[0]])
-            return df
+            if hazard == 'tsunami':
+                raster = rio.open(
+                    r'C:\HazusData\Regions\{s}\maxdg_dft\w001001.adf'.format(s=self.name))
+                affine = raster.meta.get('transform')
+                band = raster.read(1)
+                # band = np.where(band < 0, 0, band)
+
+                geoms = []
+                for geometry, value in rio.features.shapes(band, transform=affine):
+                    try:
+                        if value >= 1:
+                            result = {'properties': {
+                                'PARAMVALUE': value}, 'geometry': geometry}
+                        geoms.append(result)
+                    except:
+                        pass
+                gdf = gpd.GeoDataFrame.from_features(geoms)
+                gdf.PARAMVALUE[gdf.PARAMVALUE > 60] = 0
+                hazardDict['Water Depth'] = gdf
+            return hazardDict
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise

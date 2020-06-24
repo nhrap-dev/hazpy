@@ -1,5 +1,5 @@
-{% set name = "hazpy" %}
-{% set version = "0.0.2" %}
+{% set name = "hazpydev" %}
+{% set version = "0.0.1" %}
 
 package:
   name: "{{ name|lower }}"
@@ -79,6 +79,7 @@ requirements:
     - utm
     - win_inet_pton
     - wincertstore
+    - xhtml2pdf
 
 test:
   imports:
@@ -96,6 +97,9 @@ test:
     - hazpy.legacy.exporting
     - hazpy.legacy.exporting.reports
     - hazpy.legacy.exporting.results
+    - hazpy.legacy.studyregion
+    - hazpy.legacy.hazusdb
+    - hazpy.legacy.report
     - hazpy.tornado
     - hazpy.tsunami
     - hazpy.tsunami.modules
