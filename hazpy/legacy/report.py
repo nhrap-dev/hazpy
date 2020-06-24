@@ -2,6 +2,9 @@ from xhtml2pdf import pisa
 import os
 import pandas as pd
 
+import geopandas as gpd
+from shapely.wkt import loads
+
 from matplotlib import pyplot as plt
 import matplotlib.patheffects as pe
 from matplotlib.collections import PatchCollection
@@ -10,6 +13,10 @@ from matplotlib.colors import LinearSegmentedColormap
 import shapely
 from jenkspy import jenks_breaks as nb
 import numpy as np
+
+import contextily as ctx
+
+
 """
 ------testing-----------
 
@@ -18,6 +25,43 @@ sr = legacy.StudyRegion('eq_test_AK')
 el = sr.getEconomicLoss()
 el['total'] = '555'
 df = el.iloc[0:7]
+el = el.addGeometry()
+el['geometry'] = el['geometry'].apply(wkt.loads)
+gdf = gpd.GeoDataFrame(el, geometry='geometry')
+
+
+hazard_colors = {
+    '0': {'lowValue': 0.0, 'highValue': 0, 'color': '#ffffff'},
+    '1': {'lowValue': 0.0, 'highValue': 0.0017, 'color': '#dfe6fe'},
+    '2': {'lowValue': 0.0017, 'highValue': 0.0078, 'color': '#dfe6fe'},
+    '3': {'lowValue': 0.0078, 'highValue': 0.014, 'color': '#82f9fb'},
+    '4': {'lowValue': 0.014, 'highValue': 0.039, 'color': '#7efbdf'},
+    '5': {'lowValue': 0.039, 'highValue': 0.092, 'color': '#95f879'},
+    '6': {'lowValue': 0.092, 'highValue': 0.18, 'color': '#f7f835'},
+    '7': {'lowValue': 0.18, 'highValue': 0.34, 'color': '#fdca2c'},
+    '8': {'lowValue': 0.34, 'highValue': 0.65, 'color': '#ff701f'},
+    '9': {'lowValue': 0.65, 'highValue': 1.24, 'color': '#ec2516'},
+    '10': {'lowValue': 1.24, 'highValue': 2, 'color': '#c81e11'}
+}
+
+breaks = [hazard_colors[x]['highValue'] for x in hazard_colors][1:]
+color_vals = [gdf.iloc[[x]]['PGA'][0] for x in idx]
+
+fig = plt.figure(figsize=(2.74, 2.46), dpi=600) 
+ax = fig.gca()
+breaks = 5
+color_vals = nb(gdf.EconLoss, breaks)
+color_array = pd.cut(color_vals, bins=(list(breaks)), labels=[x[0] + 1 for x in enumerate(list(breaks))][0:-1])
+color_array = pd.Series(pd.to_numeric(color_array)).fillna(0)
+poly.set(array=color_array, cmap='Reds')
+ax.add_collection(poly)
+boundaries.set(facecolor='None', edgecolor='#303030', linewidth=0.3, alpha=0.5)
+ax.add_collection(boundaries)
+ax.margins(x=0, y=0.1)
+ax.axis('off')
+ax.axis('scaled')
+fig.tight_layout(pad=0, h_pad=None, w_pad=None, rect=None)
+fig.show()
 
 report = legacy.Report('Earthquake Wesley', 'Mean son of a gun', icon='tornado')
 

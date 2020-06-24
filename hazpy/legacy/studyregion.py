@@ -5,6 +5,7 @@ import pyodbc as py
 from shapely.wkt import loads
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
+import urllib
 # TODO check if all geojsons are oriented correctly; if not, apply orient
 # try:
 #     from shapely.ops import orient  # version >=1.7a2
@@ -15,10 +16,7 @@ import sys
 from functools import reduce
 
 import rasterio as rio
-from rasterio import features
-from jenkspy import jenks_breaks as nb
 import numpy as np
-from matplotlib import pyplot as plt
 
 
 class StudyRegion():
@@ -32,8 +30,9 @@ class StudyRegion():
         self.name = studyRegion
         self.conn = self.createConnection()
         self.hazards = self.getHazardsAnalyzed()
+        self.conn = self.createConnection()
 
-    def createConnection(self, orm='pyodbc'):
+    def createConnection(self):
         """ Creates a connection object to the local Hazus SQL Server database
 
             Key Argument:
@@ -43,13 +42,14 @@ class StudyRegion():
         """
         try:
             comp_name = os.environ['COMPUTERNAME']
-            if orm == 'pyodbc':
-                conn = py.connect('Driver=ODBC Driver 11 for SQL Server;SERVER=' +
-                                  comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
-            # TODO add sqlalchemy connection
-            # if orm == 'sqlalchemy':
-            #     conn = create_engine('mssql+pyodbc://SA:Gohazusplus_02@HAZUSPLUSSRVR')
-            # self.conn = conn
+            server = comp_name+"\HAZUSPLUSSRVR"
+            user = 'SA'
+            password = 'Gohazusplus_02'
+            driver = 'ODBC Driver 13 for SQL Server'
+            # driver = 'ODBC Driver 11 for SQL Server'
+            engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(
+                "DRIVER={0};SERVER={1};PORT=1433;DATABASE={2};UID={3};PWD={4};TDS_Version=8.0;".format(driver, server, self.name, user, password))))
+            conn = engine.connect()
             return conn
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -524,7 +524,7 @@ class StudyRegion():
                             # band = np.where(band < 0, 0, band)
 
                             geoms = []
-                            for geometry, value in features.shapes(band, transform=affine):
+                            for geometry, value in rio.features.shapes(band, transform=affine):
                                 try:
                                     if value >= 1:
                                         result = {'properties': {
@@ -596,29 +596,148 @@ class StudyRegion():
             raise
 
     def getEssentialFacilities(self):
+        # TODO add support for HU, FL, TS
+        # EQ: NaturalGasPl, OilPl, hzWasteWaterPl, hzLevees
         """ Queries the call essential facilities for a study region in local Hazus SQL Server database
 
             Returns:
                 df: pandas dataframe -- a dataframe of the essential facilities and damages
         """
         try:
-            essential_facilities = ['CareFlty', 'EmergencyCtr', 'FireStation',
-                                    'PoliceStation', 'School', 'AirportFlty', 'BusFlty', 'FerryFlty',
-                                    'HighwayBridge', 'HighwayTunnel', 'LightRailBridge', 'LightRailFlty',
-                                    'LightRailTunnel', 'PortFlty', 'RailFlty', 'RailwayBridge',
-                                    'RailwayTunnel', 'Runway', 'ElectricPowerFlty', 'CommunicationFlty',
-                                    'NaturalGasFlty', 'OilFlty', 'PotableWaterFlty', 'WasteWaterFlty',
-                                    'Dams', 'Military', 'NuclearFlty', 'HighwaySegment', 'LightRailSegment',
-                                    'RailwaySegment', 'NaturalGasPl', 'OilPl', 'WasteWaterPl', 'Levees']
+            essentialFacilities = ['AirportFlty', 'BusFlty', 'CareFlty', 'CommunicationFlty',
+                                   'Dams', 'ElectricPowerFlty', 'EmergencyCtr', 'FerryFlty', 'FireStation',
+                                   'HighwayBridge', 'HighwaySegment', 'HighwayTunnel', 'Levees', 'LightRailBridge',
+                                   'LightRailFlty', 'LightRailSegment', 'LightRailTunnel', 'Military',
+                                   'NaturalGasFlty', 'NaturalGasPl', 'NuclearFlty', 'OilFlty', 'OilPl',
+                                   'PoliceStation', 'PortFlty', 'PotableWaterFlty', 'RailFlty',
+                                   'RailwayBridge', 'RailwaySegment', 'RailwayTunnel', 'Runway', 'School',
+                                   'WasteWaterFlty', 'WasteWaterPl']
 
-            sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(
-                s=self.name)
+            prefixDict = {
+                'earthquake': 'eq',
+                'hurricane': 'huResults',
+                'flood': 'flFR',
+                'tsunami': 'ts'
+            }
+            prefix = prefixDict[self.hazards[0]]
 
-            df = self.query(sql)
-            return df
+            essentialFacilityDataFrames = {}
+            for facility in essentialFacilities:
+                try:
+                    # get Id column name
+
+                    sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'""" + \
+                        prefix+facility+"""' AND COLUMN_NAME LIKE '"""+facility+"""%'"""
+                    df = self.query(sql)
+                    if len(df) < 1:
+                        sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'""" + \
+                            prefix+facility+"""' AND COLUMN_NAME LIKE '%Id'"""
+                        df = self.query(sql)
+                    idColumn = df.fieldName[0]
+
+                    # get dataframe from hazus db
+                    sqlDict = {
+                        'earthquake': """
+                            SELECT
+                                impact.FacilityID,
+                                impact.FacilityType,
+                                impact.Affected,
+                                impact.Minor,
+                                impact.Major,
+                                impact.Destroyed,
+                                impact.EconLoss,
+                                hz.[Name],
+                                hz.[geometry]
+                                FROM
+                                (SELECT 
+                                    ["""+idColumn+"""] as FacilityID,
+                                    '"""+facility+"""' as "FacilityType",
+                                    [PDsSlight] as Affected,
+                                    [PDsModerate] as Minor,
+                                    [PDsExtensive] as Major,
+                                    [PDsComplete] as Destroyed,
+                                    [EconLoss]
+                                    from ["""+self.name+"""].[dbo].["""+prefix+facility+"""]
+                                    where EconLoss > 0) impact
+                                left join
+                                (SELECT 
+                                    ["""+idColumn+"""] as FacilityID,
+                                    [Name],
+                                    Shape.STAsText() as geometry
+                                    from ["""+self.name+"""].[dbo].[hz"""+facility+"""]) hz
+                                on hz.FacilityID = impact.FacilityID
+                            """,
+                        'hurricane': """
+                            SELECT 
+                                impact.FacilityID,
+                                impact.FacilityType,
+                                impact.Affected,
+                                impact.Minor,
+                                impact.Major,
+                                impact.Destroyed,
+                                hz.[Name],
+                                hz.[geometry]
+                                from 
+                                (select
+                                        ["""+idColumn+"""] as FacilityID,
+                                        '"""+facility+"""' as "FacilityType",
+                                        MINOR as Affected,
+                                        MODERATE as Minor,
+                                        SEVERE as Major,
+                                        COMPLETE as Destroyed
+                                        from [hu_test].[dbo].["""+prefix+facility+"""]) impact
+                                        left join
+                                    (select
+                                        ["""+idColumn+"""] as FacilityID,
+                                        '"""+facility+"""' as "FacilityType",
+                                        [Name],
+                                        Shape.STAsText() as geometry
+                                        from [hu_test].[dbo].[hz"""+facility+"""]) hz
+                                        on hz.FacilityID = impact.FacilityID
+                            """,
+                        'flood': """
+                            SELECT 
+                                impact.FacilityID,
+                                impact.FacilityType,
+                                impact.Functionality,
+                                hz.[Name],
+                                hz.[geometry]
+                                from 
+                                (select
+                                        ["""+idColumn+"""] as FacilityID,
+                                        '"""+facility+"""' as "FacilityType",
+                                        Functionality
+                                        from [fl_test].[dbo].["""+prefix+facility+"""]) impact
+                                        left join
+                                    (select
+                                        ["""+idColumn+"""] as FacilityID,
+                                        '"""+facility+"""' as "FacilityType",
+                                        [Name],
+                                        Shape.STAsText() as geometry
+                                        from [hu_test].[dbo].[hz"""+facility+"""]) hz
+                                        on hz.FacilityID = impact.FacilityID
+                            """,
+                        'tsunami': None
+                    }
+                    if sqlDict[self.hazards[0]] != None:
+                        df = self.query(sqlDict[self.hazards[0]])
+                        if len(df) > 0:
+                            essentialFacilityDataFrames[facility] = df
+                except:
+                    pass
+            if len(essentialFacilityDataFrames) > 0:
+                return essentialFacilityDataFrames
+            else:
+                print("Returned empty results for " + self.hazards[0])
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+            """
+            import hazpy
+            sr = hazpy.legacy.StudyRegion('ts_test')
+            ef = sr.getEssentialFacilities()
+            ef.keys()
+            """
 
     def getDemographics(self):
         """Summarizes demographics at the lowest level of geography
@@ -837,12 +956,4 @@ def transportation
 def agriculture
 def vehicles?
 def GBS?
-
-import hazpy
-path = 'C:/Users/jrainesi/Downloads/test/'
-l = ['eq_test_AK', 'ts_test', 'hu_test', 'fl_test']
-for i in l:
-    sr = hazpy.legacy.StudyRegion(i)
-    r = sr.getResults()
-    r.toCSV(path + i + '.csv')
 """
