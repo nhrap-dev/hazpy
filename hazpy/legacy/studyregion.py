@@ -18,6 +18,9 @@ from functools import reduce
 import rasterio as rio
 import numpy as np
 
+from .studyregiondataframe import StudyRegionDataFrame
+from .report import Report
+
 
 class StudyRegion():
     """ Creates a study region object using an existing study region in the local Hazus database
@@ -31,6 +34,7 @@ class StudyRegion():
         self.conn = self.createConnection()
         self.hazards = self.getHazardsAnalyzed()
         self.conn = self.createConnection()
+        self.report = Report(self, self.name, '', self.hazards[0])
 
     def createConnection(self):
         """ Creates a connection object to the local Hazus SQL Server database
@@ -41,15 +45,15 @@ class StudyRegion():
                 conn: pyodbc connection
         """
         try:
-            comp_name = os.environ['COMPUTERNAME']
-            server = comp_name+"\HAZUSPLUSSRVR"
-            user = 'SA'
-            password = 'Gohazusplus_02'
-            driver = 'ODBC Driver 13 for SQL Server'
+            comp_name=os.environ['COMPUTERNAME']
+            server=comp_name+"\HAZUSPLUSSRVR"
+            user='SA'
+            password='Gohazusplus_02'
+            driver='ODBC Driver 13 for SQL Server'
             # driver = 'ODBC Driver 11 for SQL Server'
-            engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(
+            engine=create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(
                 "DRIVER={0};SERVER={1};PORT=1433;DATABASE={2};UID={3};PWD={4};TDS_Version=8.0;".format(driver, server, self.name, user, password))))
-            conn = engine.connect()
+            conn=engine.connect()
             return conn
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -65,7 +69,7 @@ class StudyRegion():
                 df: pandas dataframe
         """
         try:
-            df = pd.read_sql(sql, self.conn)
+            df=pd.read_sql(sql, self.conn)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -78,8 +82,8 @@ class StudyRegion():
                 df: pandas dataframe -- geometry in WKT
         """
         try:
-            sql = 'SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % self.name
-            df = self.query(sql)
+            sql='SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % self.name
+            df=self.query(sql)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -94,21 +98,21 @@ class StudyRegion():
         """
         try:
 
-            sql_dict = {
+            sqlDict={
                 'earthquake': """select Tract as tract, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.[eqTractEconLoss] group by [eqTractEconLoss].Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.flFRGBSEcLossByTotal group by CensusBlock""".format(s=self.name),
                 'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) as EconLoss from {s}.dbo.[huSummaryLoss] group by Tract""".format(s=self.name),
                 'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name)
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            df = self.query(sqlDict[self.hazards[0]])
             return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
     def getTotalEconomicLoss(self):
-        """ 
+        """
         Queries the total economic loss summation for a study region from the local Hazus SQL Server database
 
             Returns:
@@ -119,7 +123,7 @@ class StudyRegion():
 
     def getBuildingDamage(self):
         try:
-            sql_dict = {
+            sqlDict = {
                 'earthquake': """SELECT Tract as tract, SUM(ISNULL(PDsNoneBC, 0))
                         As NoDamage, SUM(ISNULL(PDsSlightBC, 0)) AS Affected, SUM(ISNULL(PDsModerateBC, 0))
                         AS Minor, SUM(ISNULL(PDsExtensiveBC, 0)) AS Major,
@@ -151,7 +155,7 @@ class StudyRegion():
 
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            df = self.query(sqlDict[self.hazards[0]])
             return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -165,7 +169,7 @@ class StudyRegion():
         """
         try:
 
-            sql_dict = {
+            sqlDict = {
                 'earthquake': """SELECT Occupancy, SUM(ISNULL(PDsNoneBC, 0))
                         As NoDamage, SUM(ISNULL(PDsSlightBC, 0)) AS Affected, SUM(ISNULL(PDsModerateBC, 0))
                         AS Minor, SUM(ISNULL(PDsExtensiveBC, 0)) AS Major,
@@ -204,7 +208,7 @@ class StudyRegion():
                         GROUP BY LEFT({s}.dbo.tsHazNsiGbs.NsiID, 3)""".format(s=self.name)
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -218,7 +222,7 @@ class StudyRegion():
         """
         try:
 
-            sql_dict = {
+            sqlDict = {
                 'earthquake': """SELECT eqBldgType AS BldgType,
                         SUM(ISNULL(PDsNoneBC, 0)) As NoDamage, SUM(ISNULL(PDsSlightBC, 0)) AS Affected,
                         SUM(ISNULL(PDsModerateBC, 0)) AS Minor, SUM(ISNULL(PDsExtensiveBC, 0))
@@ -257,7 +261,7 @@ class StudyRegion():
                         GROUP BY eqBldgType, [Description]""".format(s=self.name)
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -273,14 +277,14 @@ class StudyRegion():
 
             # NOTE injuries not available for flood model - placeholder below
             # NOTE injuries not available for hurricane model - placeholder below
-            sql_dict = {
-                'earthquake': """SELECT Tract as tract, SUM(CASE WHEN CasTime = 'N' THEN Level1Injury 
-                        ELSE 0 END) AS Injury_NightLevel1, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level2Injury ELSE 0 END) AS Injury_NightLevel2, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level3Injury ELSE 0 END) AS Injury_NightLevel3, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level1Injury ELSE 0 END) AS Injury_DayLevel1,  SUM(CASE WHEN CasTime = 'D' 
-                        THEN Level2Injury ELSE 0 END) AS Injury_DayLevel2, SUM(CASE WHEN CasTime = 'D' 
-                        THEN Level3Injury ELSE 0 END) AS Injury_DayLevel3 FROM {s}.dbo.[eqTractCasOccup] 
+            sqlDict = {
+                'earthquake': """SELECT Tract as tract, SUM(CASE WHEN CasTime = 'N' THEN Level1Injury
+                        ELSE 0 END) AS Injury_NightLevel1, SUM(CASE WHEN CasTime = 'N'
+                        THEN Level2Injury ELSE 0 END) AS Injury_NightLevel2, SUM(CASE WHEN CasTime = 'N'
+                        THEN Level3Injury ELSE 0 END) AS Injury_NightLevel3, SUM(CASE WHEN CasTime = 'N'
+                        THEN Level1Injury ELSE 0 END) AS Injury_DayLevel1,  SUM(CASE WHEN CasTime = 'D'
+                        THEN Level2Injury ELSE 0 END) AS Injury_DayLevel2, SUM(CASE WHEN CasTime = 'D'
+                        THEN Level3Injury ELSE 0 END) AS Injury_DayLevel3 FROM {s}.dbo.[eqTractCasOccup]
                         WHERE CasTime IN ('N', 'D') AND InOutTot = 'Tot' GROUP BY Tract""".format(s=self.name),
                 'flood': None,
                 'hurricane': None,
@@ -305,12 +309,12 @@ class StudyRegion():
                                     ON cdf.CensusBlock = cnp.CensusBlock
                                 group by cdf.CensusBlock""".format(s=self.name)
             }
-            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'hurricane':
+            if (sqlDict[self.hazards[0]] == None) and self.hazards[0] == 'hurricane':
                 df = pd.DataFrame(columns=['tract', 'Injuries'])
-            elif (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'flood':
+            elif (sqlDict[self.hazards[0]] == None) and self.hazards[0] == 'flood':
                 df = pd.DataFrame(columns=['block', 'Injuries'])
             else:
-                df = self.query(sql_dict[self.hazards[0]])
+                df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -326,10 +330,10 @@ class StudyRegion():
 
             # NOTE fatatilies not available for flood model - placeholder below
             # NOTE fatatilies not available for hurricane model - placeholder below
-            sql_dict = {
-                'earthquake': """SELECT Tract as tract, SUM(CASE WHEN CasTime = 'N' 
-                        THEN Level4Injury ELSE 0 End) AS Fatalities_Night, SUM(CASE WHEN CasTime = 'D' 
-                        THEN Level4Injury ELSE 0 End) AS Fatalities_Day FROM {s}.dbo.[eqTractCasOccup] 
+            sqlDict = {
+                'earthquake': """SELECT Tract as tract, SUM(CASE WHEN CasTime = 'N'
+                        THEN Level4Injury ELSE 0 End) AS Fatalities_Night, SUM(CASE WHEN CasTime = 'D'
+                        THEN Level4Injury ELSE 0 End) AS Fatalities_Day FROM {s}.dbo.[eqTractCasOccup]
                         WHERE CasTime IN ('N', 'D') AND InOutTot = 'Tot' GROUP BY Tract""".format(s=self.name),
                 'flood': None,
                 'hurricane': None,
@@ -355,12 +359,12 @@ class StudyRegion():
                                 group by cdf.CensusBlock""".format(s=self.name)
             }
 
-            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'hurricane':
+            if (sqlDict[self.hazards[0]] == None) and self.hazards[0] == 'hurricane':
                 df = pd.DataFrame(columns=['tract', 'Fatalities'])
-            elif (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'flood':
+            elif (sqlDict[self.hazards[0]] == None) and self.hazards[0] == 'flood':
                 df = pd.DataFrame(columns=['block', 'Fatalities'])
             else:
-                df = self.query(sql_dict[self.hazards[0]])
+                df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -376,17 +380,17 @@ class StudyRegion():
 
             # TODO check to see if flood is displaced households or population -- database says pop
             # NOTE displaced households not available in tsunami model - placeholder below
-            sql_dict = {
+            sqlDict = {
                 'earthquake': """select Tract as tract, SUM(DisplacedHouseholds) as DisplacedHouseholds from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, SUM(DisplacedPop) as DisplacedHouseholds from {s}.dbo.flFRShelter group by CensusBlock""".format(s=self.name),
                 'hurricane': """select TRACT as tract, SUM(DISPLACEDHOUSEHOLDS) as DisplacedHouseholds from {s}.dbo.huShelterResultsT group by Tract""".format(s=self.name),
                 'tsunami': None
             }
 
-            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'tsunami':
+            if (sqlDict[self.hazards[0]] == None) and self.hazards[0] == 'tsunami':
                 df = pd.DataFrame(columns=['block', 'DisplacedHouseholds'])
             else:
-                df = self.query(sql_dict[self.hazards[0]])
+                df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -401,17 +405,17 @@ class StudyRegion():
         try:
 
             # NOTE shelter needs aren't available for the tsunami model - placeholder below
-            sql_dict = {
+            sqlDict = {
                 'earthquake': """select Tract as tract, SUM(ShortTermShelter) as ShelterNeeds from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, SUM(ShortTermNeeds) as ShelterNeeds from {s}.dbo.flFRShelter group by CensusBlock""".format(s=self.name),
                 'hurricane': """select TRACT as tract, SUM(SHORTTERMSHELTERNEEDS) as ShelterNeeds from {s}.dbo.huShelterResultsT group by Tract
                         """.format(s=self.name),
                 'tsunami': None
             }
-            if (sql_dict[self.hazards[0]] == None) and self.hazards[0] == 'tsunami':
+            if (sqlDict[self.hazards[0]] == None) and self.hazards[0] == 'tsunami':
                 df = pd.DataFrame(columns=['block', 'ShelterNeeds'])
             else:
-                df = self.query(sql_dict[self.hazards[0]])
+                df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -425,14 +429,14 @@ class StudyRegion():
         """
         try:
             # NOTE debris not available for tsunami model - placeholder below
-            sql_dict = {
+            sqlDict = {
                 'earthquake': """select Tract as tract, SUM(DebrisW) as DebrisBW, SUM(DebrisS) as DebrisCS, SUM(DebrisTotal) as DebrisTotal from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, (SUM(FinishTons) * 2000) as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name),
                 'hurricane': """select Tract as tract, SUM(BRICKANDWOOD) as DebrisBW, SUM(CONCRETEANDSTEEL) as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT group by Tract""".format(s=self.name),
                 'tsunami': """select CensusBlock as block, (SUM(FinishTons) * 2000) as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name)
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -649,7 +653,7 @@ class StudyRegion():
                                 hz.[Name],
                                 hz.[geometry]
                                 FROM
-                                (SELECT 
+                                (SELECT
                                     ["""+idColumn+"""] as FacilityID,
                                     '"""+facility+"""' as "FacilityType",
                                     [PDsSlight] as Affected,
@@ -660,7 +664,7 @@ class StudyRegion():
                                     from ["""+self.name+"""].[dbo].["""+prefix+facility+"""]
                                     where EconLoss > 0) impact
                                 left join
-                                (SELECT 
+                                (SELECT
                                     ["""+idColumn+"""] as FacilityID,
                                     [Name],
                                     Shape.STAsText() as geometry
@@ -668,7 +672,7 @@ class StudyRegion():
                                 on hz.FacilityID = impact.FacilityID
                             """,
                         'hurricane': """
-                            SELECT 
+                            SELECT
                                 impact.FacilityID,
                                 impact.FacilityType,
                                 impact.Affected,
@@ -677,7 +681,7 @@ class StudyRegion():
                                 impact.Destroyed,
                                 hz.[Name],
                                 hz.[geometry]
-                                from 
+                                from
                                 (select
                                         ["""+idColumn+"""] as FacilityID,
                                         '"""+facility+"""' as "FacilityType",
@@ -696,13 +700,13 @@ class StudyRegion():
                                         on hz.FacilityID = impact.FacilityID
                             """,
                         'flood': """
-                            SELECT 
+                            SELECT
                                 impact.FacilityID,
                                 impact.FacilityType,
                                 impact.Functionality,
                                 hz.[Name],
                                 hz.[geometry]
-                                from 
+                                from
                                 (select
                                         ["""+idColumn+"""] as FacilityID,
                                         '"""+facility+"""' as "FacilityType",
@@ -735,7 +739,7 @@ class StudyRegion():
             """
             import hazpy
             sr = hazpy.legacy.StudyRegion('ts_test')
-            ef = sr.getEssentialFacilities()
+            ef = sr.getResults()
             ef.keys()
             """
 
@@ -747,14 +751,14 @@ class StudyRegion():
         """
         try:
 
-            sql_dict = {
+            sqlDict = {
                 'earthquake': """select Tract as tract, Population, Households FROM {s}.dbo.[hzDemographicsT]""".format(s=self.name),
                 'flood': """select CensusBlock as block, Population, Households FROM {s}.dbo.[hzDemographicsB]""".format(s=self.name),
                 'hurricane': """select Tract as tract, Population, Households FROM {s}.dbo.[hzDemographicsT]""".format(s=self.name),
                 'tsunami': """select CensusBlock as block, Population, Households FROM {s}.dbo.[hzDemographicsB]""".format(s=self.name)
             }
 
-            df = self.query(sql_dict[self.hazards[0]])
+            df = self.query(sqlDict[self.hazards[0]])
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -776,17 +780,18 @@ class StudyRegion():
             debris = self.getDebris()
             demographics = self.getDemographics()
 
-            dataframeList = [economicLoss, buildingDamage, fatalities,
+            dataFrameList = [economicLoss, buildingDamage, fatalities,
                              injuries, shelterNeeds, displacedHouseholds, debris, demographics]
+
             if 'block' in economicLoss.columns:
                 dfMerged = reduce(lambda left, right: pd.merge(
-                    left, right, on=['block'], how='outer'), dataframeList)
+                    left, right, on=['block'], how='outer'), dataFrameList)
             elif 'tract' in economicLoss.columns:
                 dfMerged = reduce(lambda left, right: pd.merge(
-                    left, right, on=['tract'], how='outer'), dataframeList)
+                    left, right, on=['tract'], how='outer'), dataFrameList)
             elif 'county' in economicLoss.columns:
                 dfMerged = reduce(lambda left, right: pd.merge(
-                    left, right, on=['county'], how='outer'), dataframeList)
+                    left, right, on=['county'], how='outer'), dataFrameList)
 
             df = dfMerged[dfMerged['EconLoss'].notnull()]
             # Find the columns where each value is null
@@ -799,152 +804,25 @@ class StudyRegion():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-
-class StudyRegionDataFrame(pd.DataFrame):
-    """ Intializes a study region dataframe class - A pandas dataframe extended with extra methods
-
-        Key Argument:
-            studyRegion: str -- the name of the study region database
-            df: pandas dataframe -- a dataframe to extend as a StudyRegionDataFrame
-
-    """
-
-    def __init__(self, studyRegion, df):
-        super().__init__(df)
-        try:
-            self.studyRegion = studyRegion.name
-        except:
-            self.studyRegion = studyRegion.studyRegion
-        self.conn = studyRegion.conn
-        self.query = studyRegion.query
-
-    def addCensusTracts(self):
-        """ Queries the census tract geometry for a study region in local Hazus SQL Server database
+    def getCounties(self):
+        """Creates a dataframe of the county name and geometry for all counties in the study region
 
             Returns:
-                df: pandas dataframe -- a dataframe of the census geometry and fips codes
+                gdf: geopandas geodataframe -- a geodataframe of the counties
         """
         try:
 
-            sql = """SELECT Tract as tract, Shape.STAsText() AS Shape FROM {s}.dbo.hzTract""".format(
-                s=self.studyRegion)
+            sql = """SELECT 
+                        CountyName as "name",
+                        NumAggrTracts as "size",
+                        Shape.STAsText() as "geometry"
+                        FROM [{s}].[dbo].[hzCounty]
+                """.format(s=self.name)
 
             df = self.query(sql)
-            return StudyRegionDataFrame(self, df)
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def addCensusBlocks(self):
-        """ Queries the census block geometry for a study region in local Hazus SQL Server database
-
-            Returns:
-                df: pandas dataframe -- a dataframe of the census geometry and fips codes
-        """
-        try:
-
-            sql = """SELECT CensusBlock as block, Shape.STAsText() AS Shape FROM {s}.dbo.hzCensusBlock""".format(
-                s=self.studyRegion)
-
-            df = self.query(sql)
-            return StudyRegionDataFrame(self, df)
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def addCounties(self):
-        """ Queries the county geometry for a study region in local Hazus SQL Server database
-
-            Returns:
-                df: pandas dataframe -- a dataframe of the census geometry and fips codes
-        """
-        try:
-
-            sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS Shape FROM {s}.dbo.hzCounty""".format(
-                s=self.studyRegion)
-
-            df = self.query(sql)
-            return StudyRegionDataFrame(self, df)
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def addGeometry(self):
-        """ Adds geometry to any HazusDB class dataframe with a census block, tract, or county id
-
-            Key Argument:
-                dataframe: pandas dataframe -- a HazusDB generated dataframe with a fips column named either block, tract, or county
-            Returns:
-                df: pandas dataframe -- a copy of the input dataframe with the geometry added
-        """
-        try:
-            if 'block' in self.columns:
-                geomdf = self.addCensusBlocks()
-                df = geomdf.merge(self, on='block', how='inner')
-                df.columns = [
-                    x if x != 'Shape' else 'geometry' for x in df.columns]
-                return StudyRegionDataFrame(self, df)
-            elif 'tract' in self.columns:
-                geomdf = self.addCensusTracts()
-                df = geomdf.merge(self, on='tract', how='inner')
-                df.columns = [
-                    x if x != 'Shape' else 'geometry' for x in df.columns]
-                return StudyRegionDataFrame(self, df)
-            elif 'county' in self.columns:
-                geomdf = self.addCounties()
-                df = geomdf.merge(self, on='county', how='inner')
-                df.columns = [
-                    x if x != 'Shape' else 'geometry' for x in df.columns]
-                return StudyRegionDataFrame(self, df)
-            else:
-                print(
-                    'Unable to find the column name block, tract, or county in the dataframe input')
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def toCSV(self, path):
-        """ Exports a StudyRegionDataFrame to a CSV
-
-            Key Argument:
-                path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.csv')
-        """
-        self.to_csv(path, index=False)
-
-    def toShapefile(self, path):
-        """ Exports a StudyRegionDataFrame to an Esri Shapefile
-
-            Key Argument:
-                path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.shp')
-        """
-        try:
-            if 'geometry' not in self.columns:
-                self = self.addGeometry()
-            self['geometry'] = self['geometry'].apply(
-                lambda x: loads(x))
-            gdf = gpd.GeoDataFrame(self, geometry='geometry')
-            gdf.to_file(path, driver='ESRI Shapefile')
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            raise
-
-    def toGeoJSON(self, path):
-        """ Exports a StudyRegionDataFrame to a web compatible GeoJSON
-
-            Key Argument:
-                path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.geojson')
-        """
-        try:
-            if 'geometry' not in self.columns:
-                self = self.addGeometry()
-            self['geometry'] = self['geometry'].apply(lambda x: loads(x))
-            gdf = gpd.GeoDataFrame(self, geometry='geometry')
-            for index in range(len(gdf['geometry'])):
-                if type(gdf['geometry'][index]) == Polygon:
-                    gdf['geometry'][index] = MultiPolygon(
-                        [gdf['geometry'][index]])
-            # gdf['geometry'].apply(orient, args=(1,))
-            gdf.to_file(path, driver='GeoJSON')
+            df['geometry'] = df['geometry'].apply(loads)
+            gdf = gpd.GeoDataFrame(df, geometry='geometry')
+            return gdf
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
