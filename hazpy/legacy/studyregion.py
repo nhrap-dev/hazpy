@@ -16,6 +16,7 @@ import sys
 from functools import reduce
 
 import rasterio as rio
+from rasterio import features
 import numpy as np
 
 from .studyregiondataframe import StudyRegionDataFrame
@@ -45,15 +46,15 @@ class StudyRegion():
                 conn: pyodbc connection
         """
         try:
-            comp_name=os.environ['COMPUTERNAME']
-            server=comp_name+"\HAZUSPLUSSRVR"
-            user='SA'
-            password='Gohazusplus_02'
-            driver='ODBC Driver 13 for SQL Server'
+            comp_name = os.environ['COMPUTERNAME']
+            server = comp_name+"\HAZUSPLUSSRVR"
+            user = 'SA'
+            password = 'Gohazusplus_02'
+            driver = 'ODBC Driver 13 for SQL Server'
             # driver = 'ODBC Driver 11 for SQL Server'
-            engine=create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(
+            engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(
                 "DRIVER={0};SERVER={1};PORT=1433;DATABASE={2};UID={3};PWD={4};TDS_Version=8.0;".format(driver, server, self.name, user, password))))
-            conn=engine.connect()
+            conn = engine.connect()
             return conn
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -69,7 +70,7 @@ class StudyRegion():
                 df: pandas dataframe
         """
         try:
-            df=pd.read_sql(sql, self.conn)
+            df = pd.read_sql(sql, self.conn)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -82,8 +83,8 @@ class StudyRegion():
                 df: pandas dataframe -- geometry in WKT
         """
         try:
-            sql='SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % self.name
-            df=self.query(sql)
+            sql = 'SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % self.name
+            df = self.query(sql)
             return df
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -98,7 +99,7 @@ class StudyRegion():
         """
         try:
 
-            sqlDict={
+            sqlDict = {
                 'earthquake': """select Tract as tract, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.[eqTractEconLoss] group by [eqTractEconLoss].Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.flFRGBSEcLossByTotal group by CensusBlock""".format(s=self.name),
                 'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) as EconLoss from {s}.dbo.[huSummaryLoss] group by Tract""".format(s=self.name),
@@ -290,12 +291,12 @@ class StudyRegion():
                 'hurricane': None,
                 'tsunami': """SELECT
                         cdf.CensusBlock as block,
-                        SUM(cdf.InjuryDayTotal) as InjuryDayFair,
-                        SUM(cdg.InjuryDayTotal) As InjuryDayGood,
-                        SUM(cdp.InjuryDayTotal) As InjuryDayPoor,
-                        SUM(cnf.InjuryNightTotal) As InjuryNightFair,
-                        SUM(cng.InjuryNightTotal) As InjuryNightGood,
-                        SUM(cnp.InjuryNightTotal) As InjuryNightPoor
+                        SUM(cdf.InjuryDayTotal) as Injuries_DayFair,
+                        SUM(cdg.InjuryDayTotal) As Injuries_DayGood,
+                        SUM(cdp.InjuryDayTotal) As Injuries_DayPoor,
+                        SUM(cnf.InjuryNightTotal) As Injuries_NightFair,
+                        SUM(cng.InjuryNightTotal) As Injuries_NightGood,
+                        SUM(cnp.InjuryNightTotal) As Injuries_NightPoor
                             FROM {s}.dbo.tsCasualtyDayFair as cdf
                                 FULL JOIN {s}.dbo.tsCasualtyDayGood as cdg
                                     ON cdf.CensusBlock = cdg.CensusBlock
@@ -528,7 +529,7 @@ class StudyRegion():
                             # band = np.where(band < 0, 0, band)
 
                             geoms = []
-                            for geometry, value in rio.features.shapes(band, transform=affine):
+                            for geometry, value in features.shapes(band, transform=affine):
                                 try:
                                     if value >= 1:
                                         result = {'properties': {
@@ -583,7 +584,7 @@ class StudyRegion():
                 # band = np.where(band < 0, 0, band)
 
                 geoms = []
-                for geometry, value in rio.features.shapes(band, transform=affine):
+                for geometry, value in features.shapes(band, transform=affine):
                     try:
                         if value >= 1:
                             result = {'properties': {
@@ -730,7 +731,9 @@ class StudyRegion():
                 except:
                     pass
             if len(essentialFacilityDataFrames) > 0:
-                return essentialFacilityDataFrames
+                essentialFacilityDf = pd.concat(
+                    [x for x in essentialFacilityDataFrames.values()])
+                return essentialFacilityDf
             else:
                 print("Returned empty results for " + self.hazards[0])
         except:
@@ -826,6 +829,34 @@ class StudyRegion():
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    def getTravelTimeToSafety(self):
+        """Creates a geodataframe of the travel time to safety
+
+            Returns:
+                gdf: geopandas geodataframe -- a geodataframe of the counties
+        """
+        if self.hazards[0] == 'tsunami':
+            try:
+
+                sql = """SELECT
+                    tiger.CensusBlock,
+                    tiger.Tract, tiger.Shape.STAsText() AS geometry,
+                    ISNULL(travel.Trav_SafeUnder65, 0) as travelTimeUnder65yo,
+                    ISNULL(travel.Trav_SafeOver65, 0) as travelTimeOver65yo
+                        FROM {s}.dbo.[hzCensusBlock_TIGER] as tiger
+                            FULL JOIN {s}.dbo.tsTravelTime as travel
+                                ON tiger.CensusBlock = travel.CensusBlock""".format(s=self.name)
+
+                df = self.query(sql)
+                df['geometry'] = df['geometry'].apply(loads)
+                gdf = gpd.GeoDataFrame(df, geometry='geometry')
+                return gdf
+            except:
+                print("Unexpected error:", sys.exc_info()[0])
+                raise
+        else:
+            print("This method is only available for tsunami study regions")
 
 
 """

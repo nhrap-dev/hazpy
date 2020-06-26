@@ -10,8 +10,10 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 import matplotlib.patheffects as pe
 from matplotlib.collections import PatchCollection
+import matplotlib.ticker as ticker
 from matplotlib.patches import Polygon
 from matplotlib.colors import LinearSegmentedColormap
+import seaborn as sns
 import shapely
 from jenkspy import jenks_breaks as nb
 import numpy as np
@@ -19,101 +21,6 @@ import shutil
 
 import contextily as ctx
 import sys
-
-
-"""
-------testing-----------
-
-import matplotlib.pyplot as plt
-import matplotlib.patheffects as pe
-from hazpy import legacy
-sr = legacy.StudyRegion('hu_test')
-cs = sr.getCounties()
-hd = sr.getHazardDictionary()
-hdf = hd[list(hd.keys())[0]]
-
-fig = plt.figure(figsize=(3, 3), dpi=300)
-ax = fig.gca()
-hdf.plot(column='PARAMVALUE', cmap='Blues', ax=ax)
-cs.plot(facecolor="none", edgecolor="darkgrey", linewidth=0.2, ax=ax)
-
-annotationDf = cs.sort_values('size', ascending=False)[0:5]
-annotationDf.geometry.iloc[0].centroid
-annotationDf['centroid'] = [x.centroid for x in annotationDf['geometry']]
-for row in range(len(annotationDf)):
-    name = annotationDf.iloc[row]['name']
-    coords = annotationDf.iloc[row]['centroid']
-    plt.annotate(s=name, xy=[coords.x, coords.y], horizontalalignment='center', size = 3,
-                 color='white', path_effects=[pe.withStroke(linewidth=1, foreground='#404040')])
-
-ax.axis('scaled')
-ax.axis('off')
-fig.show()
-
-el = sr.getEconomicLoss()
-el['total'] = '555'
-df = el.iloc[0:7]
-el = el.addGeometry()
-el['geometry'] = el['geometry'].apply(wkt.loads)
-gdf = gpd.GeoDataFrame(el, geometry='geometry')
-
-
-hazard_colors = {
-    '0': {'lowValue': 0.0, 'highValue': 0, 'color': '#ffffff'},
-    '1': {'lowValue': 0.0, 'highValue': 0.0017, 'color': '#dfe6fe'},
-    '2': {'lowValue': 0.0017, 'highValue': 0.0078, 'color': '#dfe6fe'},
-    '3': {'lowValue': 0.0078, 'highValue': 0.014, 'color': '#82f9fb'},
-    '4': {'lowValue': 0.014, 'highValue': 0.039, 'color': '#7efbdf'},
-    '5': {'lowValue': 0.039, 'highValue': 0.092, 'color': '#95f879'},
-    '6': {'lowValue': 0.092, 'highValue': 0.18, 'color': '#f7f835'},
-    '7': {'lowValue': 0.18, 'highValue': 0.34, 'color': '#fdca2c'},
-    '8': {'lowValue': 0.34, 'highValue': 0.65, 'color': '#ff701f'},
-    '9': {'lowValue': 0.65, 'highValue': 1.24, 'color': '#ec2516'},
-    '10': {'lowValue': 1.24, 'highValue': 2, 'color': '#c81e11'}
-}
-
-breaks = [hazard_colors[x]['highValue'] for x in hazard_colors][1:]
-color_vals = [gdf.iloc[[x]]['PGA'][0] for x in idx]
-
-fig = plt.figure(figsize=(2.74, 2.46), dpi=600)
-ax = fig.gca()
-breaks = 5
-color_vals = nb(gdf.EconLoss, breaks)
-color_array = pd.cut(color_vals, bins=(list(breaks)), labels=[
-                     x[0] + 1 for x in enumerate(list(breaks))][0:-1])
-color_array = pd.Series(pd.to_numeric(color_array)).fillna(0)
-poly.set(array=color_array, cmap='Reds')
-ax.add_collection(poly)
-boundaries.set(facecolor='None', edgecolor='#303030', linewidth=0.3, alpha=0.5)
-ax.add_collection(boundaries)
-ax.margins(x=0, y=0.1)
-ax.axis('off')
-ax.axis('scaled')
-fig.tight_layout(pad=0, h_pad=None, w_pad=None, rect=None)
-fig.show()
-
-
-
-
-from hazpy import legacy
-sr = legacy.StudyRegion('eq_test_AK')
-el = sr.getEconomicLoss()
-el['total'] = '555'
-df = el.iloc[0:7]
-report = legacy.Report('Earthquake Wesley',
-                       'Mean son of a gun', icon='tornado')
-
-report.addTable(df, 'Economic Loss', '$400 B', 'left')
-report.addTable(df, 'Shelter Needs', '5 k people', 'left')
-report.addImage("C:/projects/HazusTools/HEU/test.png",
-                'Time to Shelter', 'left')
-# report.addImage("C:/projects/HazusTools/HEU/test.png",'Time to Shelter', 'right')
-# report.addTable(df, 'Economic Loss', '$400 B', 'right')
-report.addTable(df, 'Shelter Needs', '5 k people', 'right')
-
-report.save('C:/Users/jrainesi/Downloads/test_report.pdf')
-
-"""
 
 
 class Report():
@@ -129,7 +36,11 @@ class Report():
 
     def __init__(self, studyRegionClass, title, subtitle, icon):
         self.__getResults = studyRegionClass.getResults
+        self.__getBuildingDamageByOccupancy = studyRegionClass.getBuildingDamageByOccupancy
+        self.__getBuildingDamageByType = studyRegionClass.getBuildingDamageByType
         self.__getEssentialFacilities = studyRegionClass.getEssentialFacilities
+        self.__getHazardDictionary = studyRegionClass.getHazardDictionary
+        self.__getTravelTimeToSafety = studyRegionClass.getTravelTimeToSafety
         self.assets = {
             'earthquake': 'https://fema-ftp-snapshot.s3.amazonaws.com/Hazus/Assets/hazard_icons/Earthquake_DHSGreen.png',
             'flood': 'https://fema-ftp-snapshot.s3.amazonaws.com/Hazus/Assets/hazard_icons/Flood_DHSGreen.png',
@@ -155,21 +66,24 @@ class Report():
     def abbreviate(self, number):
         # TODO debug
         try:
-            breakpoint()
             digits = 0
-            f_str = str("{:,}".format(round(number, digits)))
-            if ('.' in f_str) and (digits == 0):
-                f_str = f_str.split('.')[0]
+            number = float(number)
+            formattedString = str("{:,}".format(round(number, digits)))
+            if ('.' in formattedString) and (digits == 0):
+                formattedString = formattedString.split('.')[0]
             if (number > 1000) and (number < 1000000):
-                split = f_str.split(',')
-                f_str = split[0] + '.' + split[1][0:-1] + ' K'
+                split = formattedString.split(',')
+                formattedString = split[0] + '.' + split[1][0:-1] + ' K'
             if (number > 1000000) and (number < 1000000000):
-                split = f_str.split(',')
-                f_str = split[0] + '.' + split[1][0:-1] + ' M'
+                split = formattedString.split(',')
+                formattedString = split[0] + '.' + split[1][0:-1] + ' M'
             if (number > 1000000000) and (number < 1000000000000):
-                split = f_str.split(',')
-                f_str = split[0] + '.' + split[1][0:-1] + ' B'
-            return f_str
+                split = formattedString.split(',')
+                formattedString = split[0] + '.' + split[1][0:-1] + ' B'
+            if (number > 1000000000000) and (number < 1000000000000000):
+                split = formattedString.split(',')
+                formattedString = split[0] + '.' + split[1][0:-1] + ' T'
+            return formattedString
         except:
             return str(number)
 
@@ -177,21 +91,21 @@ class Report():
         if truncate:
             number = int(round(number))
         if abbreviate:
-            number = self.abbreviate(str(number))
-        return "{:,}".format(number)
+            number = self.abbreviate(number)
+        else:
+            number = "{:,}".format(number)
+        return number
 
     def toDollars(self, number, abbreviate=False, truncate=False):
-        # TODO debug
-        breakpoint()
         if truncate:
             number = int(round(number))
         if abbreviate:
-            number = self.abbreviate(number)
-            dollars = '$'+"{:,}".format(str(number))
+            dollars = self.abbreviate(number)
         else:
-            dollars = '$'+"{:,}".format(str(number))
+            dollars = '$'+"{:,}".format(number)
             dollarsSplit = dollars.split('.')
-            dollars = ''.join([dollarsSplit[0], dollarsSplit[1][0:1]])
+            if len(dollarsSplit) > 1:
+                dollars = '.'.join([dollarsSplit[0], dollarsSplit[1][0:1]])
         return dollars
 
     def updateTemplate(self):
@@ -248,8 +162,8 @@ class Report():
                         .header_table_cell_icon {
                             border: none;
                             width: 100px;
-                            padding-top: 0;
-                            padding-bottom: 0;
+                            padding-top: 5px;
+                            padding-bottom: 5px;
                             padding-left: 10px;
                             padding-right: 0;
                         }
@@ -342,11 +256,11 @@ class Report():
                         }
                         .results_table {
                             height: auto;
-                            width: 512pt;
+                            width: 100%;
                             padding-top: 0;
                             padding-bottom: 0;
-                            padding-left: 5px;
-                            padding-right: 5px;
+                            padding-left: 0;
+                            padding-right: 0;
                             margin-top: 0;
                             margin-bottom: 0;
                             margin-left: 0;
@@ -367,26 +281,34 @@ class Report():
                             text-align: left;
                             padding-top: 3px;
                             padding-bottom: 1px;
-                            width: 60%;
+                            padding-right: 1px;
+                            padding-left: 5px;
+                            width: 40%;
                         }
                         .results_table_header_title_solo {
                             color: #fff;
                             text-align: left;
                             padding-top: 3px;
                             padding-bottom: 1px;
-                            width: 512pt;
+                            padding-left: 5px;
+                            width: 100%;
                         }
                         .results_table_header_total {
                             color: #fff;
-                            text-align: center;
+                            text-align: right;
+                            vertical-align: top;
                             padding-top: 3px;
                             padding-bottom: 1px;
+                            padding-right: 1px;
+                            padding-left: 0px;
                         }
                         .results_table_header_number {
                             color: #fff;
                             text-align: left;
                             padding-top: 3px;
                             padding-bottom: 1px;
+                            padding-right: 1px;
+                            padding-left: 0px;
                         }
                         .results_table_cells_header {
                             background-color: #abadb0;
@@ -403,6 +325,7 @@ class Report():
                             text-align: left;
                             padding-top: 3px;
                             padding-bottom: 1px;
+                            padding-left: 5px;
                         }
                         .results_table_img {
                             width: 512pt;
@@ -463,8 +386,8 @@ class Report():
 
         Keyword Arguments: \n
             df: pandas dataframe -- expects a StudyRegionDataFrame \n
-            title: str -- report title \n
-            subtitle: str -- report subtitle \n
+            title: str -- section title \n
+            total: str -- total callout box value \n
             column: str -- which column in the report to add to (options: 'left', 'right')
         """
         headers = ['<tr>']
@@ -565,12 +488,11 @@ class Report():
             ax = fig.gca()
 
             try:
-                breakpoint()
-                gdf.plot(column=field, cmap='Blues', ax=ax)
+                gdf.plot(column=field, cmap=cmap, ax=ax)
             except:
                 gdf['geometry'] = gdf['geometry'].apply(loads)
                 gdf = gpd.GeoDataFrame(gdf, geometry='geometry')
-                gdf.plot(column=field, cmap='Blues', ax=ax)
+                gdf.plot(column=field, cmap=cmap, ax=ax)
             if legend == True:
                 sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(
                     vmin=gdf[field].min(), vmax=gdf[field].max()))
@@ -644,73 +566,472 @@ class Report():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    def save(self, path):
-        # open output file for writing (truncated binary)
-        self.updateTemplate()
-        result_file = open(path, "w+b")
-
-        # convert HTML to PDF
-        pisa_status = pisa.CreatePDF(
-            self.template,
-            dest=result_file)
-
-        # close output file
-        result_file.close()
-
-        os.startfile(path)
-        shutil.rmtree(os.getcwd() + '/' + self._tempDirectory)
-
-        # return False on success and True on errors
-        return pisa_status.err
-
-    def saveDefault(self, hazard):
-        """ Adds image block to the report \n
+    def addHistogram(self, df, xCol, yCols, title, ylabel, column, colors=['#549534', '#f3de2c', '#bf2f37']):
+        """ Adds a map to the report \n
 
         Keyword Arguments: \n
-            src: str -- the path and filename of the image \n
-            title: str -- the title of the image \n
-            column: str -- which column in the report to add to (options: 'left', 'right')
+            df: pandas dataframe -- a geodataframe containing the data to be plotted \n
+            xCol: str -- the categorical field \n
+            yCols: list<str> -- the value fields \n
+            title: str -- title for the report section \n
+            ylabel: str -- y-axis label for the units being plotted in the yCols \n
+            column: str -- which column in the report to add to (options: 'left', 'right') \n
+            colors (optional if len(yCols) == 3): list<str> -- the colors for each field in yCols - should be same length (default = ['#549534', '#f3de2c', '#bf2f37'])
+        """
+        """ --- testing ---
+        sr = legacy.StudyRegion('hu_test')
+        df = sr.getBuildingDamageByOccupancy()
+        df['Major & Destroyed'] = df['Major'] + df['Destroyed']
+        ylabel = 'Structures Damaged'
+        xCol = 'Occupancy'
+        yCols = ['Affected', 'Minor', 'Major & Destroyed']
+        colors = ['#549534', '#f3de2c', '#bf2f37']"""
+        try:
+            x = [x for x in df[xCol].values] * len(yCols)
+            y = []
+            hue = []
+            for valueColumn in yCols:
+                for category in [x for x in df[xCol].values]:
+                    y.append(df[df[xCol] == category][valueColumn].values[0])
+                    hue.append(valueColumn)
+            dfPlot = pd.DataFrame({'x': x, 'y': y, 'hue': hue})
+            plt.figure(figsize=(5, 3))
+            colorPalette = dict(zip(dfPlot.hue.unique(), colors))
+            ax = sns.barplot(x='x', y='y', hue='hue',
+                             data=dfPlot, palette=colorPalette)
+            ax.set_xlabel('')
+            plt.box(on=None)
+            plt.legend(title='', fontsize=6)
+            plt.xticks(fontsize=6)
+            plt.yticks(fontsize=6)
+            fmt = '{x:,.0f}'
+            tick = ticker.StrMethodFormatter(fmt)
+            ax.yaxis.set_major_formatter(tick)
+            plt.ylabel(ylabel, fontsize=8)
+            plt.tight_layout(pad=0.1, h_pad=None, w_pad=None, rect=None)
+            if not os.path.isdir(os.getcwd() + '/' + self._tempDirectory):
+                os.mkdir(os.getcwd() + '/' + self._tempDirectory)
+            src = os.getcwd() + '/' + self._tempDirectory + '/'+ylabel+".png"
+            plt.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
+            plt.clf()
+
+            template = """
+                <div class="result_container">
+                    <table class="results_table">
+                    <tr class="results_table_header">
+                        <th class="results_table_header_title_solo">
+                        """+title+"""
+                        </th>
+                    </tr>
+                    </table>
+                    <img
+                    class="results_table_img"
+                    src='"""+src+"""'
+                    alt='"""+title+"""'
+                    />
+                </div>
+                <div class="result_container_spacer">_</div>
+                """
+            if column == 'left':
+                self.columnLeft = self.columnLeft + template
+            if column == 'right':
+                self.columnRight = self.columnRight + template
+        except:
+            plt.clf()
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+        """
+
+        data = {'apple': 10, 'orange': 15, 'lemon': 5, 'lime': 20}
+        names = list(data.keys())
+        values = list(data.values())
+
+        fig, axs = plt.subplots(1, 3, figsize=(9, 3), sharey=True)
+        axs[0].bar(names, values)
+        fig.suptitle('Categorical Plotting')
+        fig.show()
+        """
+
+    def save(self, path, deleteTemp=True, openFile=True, premade=None):
+        """Creates a PDF of the report \n
+
+        Keyword Arguments: \n
+            path: str -- the output directory and file name (example: 'C://output_directory/filename.pdf') \n
+            deleteTemp (optional): bool -- delete temp files used to create the report (default: True) \n
+            openFile (optional): bool -- open the PDF after saving (default: True) \n
+            premade (optional): str -- create a premade report (default: None; options: 'earthquake', 'flood', 'hurricane', 'tsunami') \n
+        """
+        try:
+            if premade != None:
+                self.buildPremade(premade)
+
+            # open output file for writing (truncated binary)
+            self.updateTemplate()
+            result_file = open(path, "w+b")
+
+            # convert HTML to PDF
+            pisa_status = pisa.CreatePDF(
+                self.template,
+                dest=result_file)
+
+            # close output file
+            result_file.close()
+
+            if openFile:
+                os.startfile(path)
+            if deleteTemp:
+                shutil.rmtree(os.getcwd() + '/' + self._tempDirectory)
+            self.columnLeft = ''
+            self.columnRight = ''
+
+            # return False on success and True on errors
+            return pisa_status.err
+        except:
+            if premade != None:
+                self.columnLeft = ''
+                self.columnRight = ''
+            if deleteTemp:
+                shutil.rmtree(os.getcwd() + '/' + self._tempDirectory)
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
+    def buildPremade(self, hazard):
+        # TODO remove hazard and make it infer from study region
+        """ Builds a premade report \n
+
+        Keyword Arguments: \n
+            hazard: str -- the hazard to create the premade report for (options: 'earthquake', 'flood', 'hurricane', 'tsunami')
         """
         """
         --- testing ---
         from hazpy import legacy
-        sr = legacy.StudyRegion('eq_test_AK')
-        sr.report.saveDefault('earthquake')
-        # sr = legacy.StudyRegion('hu_test')
-        # el = sr.getEconomicLoss()
-        # gdf = el.addGeometry()
+        sr = legacy.StudyRegion('ts_test')
+        sr.report.save('C:/Users/jrainesi/Downloads/REPORT.pdf', premade='tsunami')
 
         """
         try:
+            tableRowLimit = 7
             if hazard == 'earthquake':
-                breakpoint()
+                # get bulk of results
                 results = self._Report__getResults()
-                results = results.addCensusTracts()
-                essentialFacilities = self._Report__getEssentialFacilities()
+                results = results.addGeometry()
 
+                # add building damage by occupancy
+                buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
+                # create category column
+                buildingDamageByOccupancy['xCol'] = [
+                    x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
+                # create new columns for major and destroyed
+                buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
+                    buildingDamageByOccupancy['Destroyed']
+                # list columns to group for each category
+                yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
+                                  'Building Damage By Occupancy', 'Structures', 'left')
+
+                # add economic loss
                 economicLoss = results[['tract', 'EconLoss']]
-                totalEconomicLoss = self.addCommas(
-                    economicLoss['EconLoss'].sum())
-                self.toDollars(economicLoss['EconLoss'].sum(), truncate=False)
-                # el = sr.getEconomicLoss()
-                # el['total'] = '555'
-                # df = el.iloc[0:7]
+                economicLoss.columns = ['Top Census Tracts', 'Economic Loss']
+                # populate total
+                total = self.addCommas(
+                    economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
+                # limit rows to the highest values
+                economicLoss = economicLoss.sort_values(
+                    'Economic Loss', ascending=False)[0:tableRowLimit]
+                # format values
+                economicLoss['Economic Loss'] = [self.toDollars(
+                    x, abbreviate=True) for x in economicLoss['Economic Loss']]
+                self.addTable(
+                    economicLoss, 'Total Economic Loss', total, 'left')
 
-                # report.addTable(df, 'Economic Loss', '$400 B', 'left')
-                # report.addTable(df, 'Shelter Needs', '5 k people', 'left')
-                # report.addImage(
-                # "C:/projects/HazusTools/HEU/test.png", 'Time to Shelter', 'left')
-                # report.addImage("C:/projects/HazusTools/HEU/test.png",'Time to Shelter', 'right')
-                # report.addTable(df, 'Economic Loss', '$400 B', 'right')
-                # report.addTable(df, 'Shelter Needs', '5 k people', 'right')
+                # add injuries and fatatilies
+                injuriesAndFatatilies = results[['tract']]
+                injuriesAndFatatilies.columns = ['Top Census Tracts']
+                injuriesAndFatatilies['Injuries Day'] = results['Injury_DayLevel1'] + \
+                    results['Injury_DayLevel2'] + results['Injury_DayLevel3']
+                injuriesAndFatatilies['Injuries Night'] = results['Injury_NightLevel1'] + \
+                    results['Injury_NightLevel2'] + \
+                    results['Injury_NightLevel3']
+                injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_Day']
+                injuriesAndFatatilies['Fatalities Night'] = results['Fatalities_Night']
+                # populate totals
+                totalDay = self.addCommas(
+                    (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalities Day']).sum(), abbreviate=True) + ' Day'
+                totalNight = self.addCommas(
+                    (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalities Night']).sum(), abbreviate=True) + ' Night'
+                total = totalDay + '/' + totalNight
+                # limit rows to the highest values
+                injuriesAndFatatilies = injuriesAndFatatilies.sort_values(
+                    'Injuries Day', ascending=False)[0:tableRowLimit]
+                # format values
+                for column in injuriesAndFatatilies:
+                    if column != 'Top Census Tracts':
+                        injuriesAndFatatilies[column] = [self.addCommas(
+                            x, abbreviate=True) for x in injuriesAndFatatilies[column]]
 
-                # report.save('C:/Users/jrainesi/Downloads/test_report.pdf')
+                self.addTable(injuriesAndFatatilies,
+                              'Injuries and Fatatilies', total, 'left')
+
+                # add displaced households and shelter needs
+                displacedAndShelter = results[[
+                    'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
+                displacedAndShelter.columns = [
+                    'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
+                # populate totals
+                totalDisplaced = self.addCommas(
+                    displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
+                totalShelter = self.addCommas(
+                    displacedAndShelter['People Needing Shelter'].sum(), abbreviate=True)
+                total = totalDisplaced + ' Displaced/' + totalShelter + ' Needing Shelter'
+                # limit rows to the highest values
+                displacedAndShelter = displacedAndShelter.sort_values(
+                    'Displaced Households', ascending=False)[0:tableRowLimit]
+                # format values
+                for column in displacedAndShelter:
+                    if column != 'Top Census Tracts':
+                        displacedAndShelter[column] = [self.addCommas(
+                            x, abbreviate=True) for x in displacedAndShelter[column]]
+                self.addTable(
+                    displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
+
+                # add economic loss map
+                economicLoss = results[['tract', 'EconLoss', 'geometry']]
+                # convert to GeoDataFrame
+                economicLoss.geometry = economicLoss.geometry.apply(loads)
+                gdf = gpd.GeoDataFrame(economicLoss)
+                self.addMap(gdf, title='Economic Loss by Census Tract',
+                            column='right', field='EconLoss', cmap='OrRd')
+
+                # add hazard map
+                hazardDict = self._Report__getHazardDictionary()
+                gdf = hazardDict['Peak Ground Acceleration']
+                # limit the extent
+                gdf = gdf[gdf['PARAMVALUE'] > 0.1]
+                self.addMap(gdf, title='Peak Ground Acceleration',
+                            column='right', field='PARAMVALUE', cmap='coolwarm')
+
+                # add debris
+                tonsToTruckLoadsCoef = 0.25
+                # populate and format values
+                bwTons = self.addCommas(
+                    results['DebrisBW'].sum(), abbreviate=True)
+                csTons = self.addCommas(
+                    results['DebrisCS'].sum(), abbreviate=True)
+                bwTruckLoads = self.addCommas(
+                    results['DebrisBW'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                csTruckLoads = self.addCommas(
+                    results['DebrisCS'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                # populate totals
+                totalTons = self.addCommas(
+                    results['DebrisTotal'].sum(), abbreviate=True)
+                totalTruckLoads = self.addCommas(
+                    results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
+                # build data dictionary
+                data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel'], 'Tons': [
+                    bwTons, csTons], 'Truck Loads': [bwTruckLoads, csTruckLoads]}
+                # create DataFrame from data dictionary
+                debris = pd.DataFrame(
+                    data, columns=['Debris Type', 'Tons', 'Truck Loads'])
+                self.addTable(debris, 'Debris', total, 'right')
+
             if hazard == 'flood':
+                # TODO add flood export
                 pass
             if hazard == 'hurricane':
-                pass
+                # get bulk of results
+                results = self._Report__getResults()
+                results = results.addGeometry()
+
+                # add building damage by occupancy
+                buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
+                # create category column
+                buildingDamageByOccupancy['xCol'] = [
+                    x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
+                # create new columns for major and destroyed
+                buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
+                    buildingDamageByOccupancy['Destroyed']
+                # list columns to group for each category
+                yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
+                                  'Building Damage By Occupancy', 'Structures', 'left')
+
+                # add economic loss
+                economicLoss = results[['tract', 'EconLoss']]
+                economicLoss.columns = ['Top Census Tracts', 'Economic Loss']
+                # populate total
+                total = self.addCommas(
+                    economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
+                # limit rows to the highest values
+                economicLoss = economicLoss.sort_values(
+                    'Economic Loss', ascending=False)[0:tableRowLimit]
+                # format values
+                economicLoss['Economic Loss'] = [self.toDollars(
+                    x, abbreviate=True) for x in economicLoss['Economic Loss']]
+                self.addTable(
+                    economicLoss, 'Total Economic Loss', total, 'left')
+
+                # add essential facilities
+                essentialFacilities = self._Report__getEssentialFacilities()
+                # create category column
+                essentialFacilities.columns = [
+                    x.replace('FacilityType', 'xCol') for x in essentialFacilities.columns]
+                essentialFacilities['Major & Destroyed'] = essentialFacilities['Major'] + \
+                    essentialFacilities['Destroyed']
+                # list columns to group for each category
+                yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                self.addHistogram(essentialFacilities, 'xCol', yCols,
+                                  'Damaged Essential Facilities', 'Total Facilities', 'left')
+
+                # add displaced households and shelter needs
+                displacedAndShelter = results[[
+                    'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
+                displacedAndShelter.columns = [
+                    'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
+                # populate totals
+                totalDisplaced = self.addCommas(
+                    displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
+                totalShelter = self.addCommas(
+                    displacedAndShelter['People Needing Shelter'].sum(), abbreviate=True)
+                total = totalDisplaced + ' Displaced/' + totalShelter + ' Needing Shelter'
+                # limit rows to the highest values
+                displacedAndShelter = displacedAndShelter.sort_values(
+                    'Displaced Households', ascending=False)[0:tableRowLimit]
+                # format values
+                for column in displacedAndShelter:
+                    if column != 'Top Census Tracts':
+                        displacedAndShelter[column] = [self.addCommas(
+                            x, abbreviate=True) for x in displacedAndShelter[column]]
+                self.addTable(
+                    displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
+
+                # add economic loss map
+                economicLoss = results[['tract', 'EconLoss', 'geometry']]
+                # convert to GeoDataFrame
+                economicLoss.geometry = economicLoss.geometry.apply(loads)
+                gdf = gpd.GeoDataFrame(economicLoss)
+                self.addMap(gdf, title='Economic Loss by Census Tract',
+                            column='right', field='EconLoss', cmap='OrRd')
+
+                # add hazard map
+                hazardDict = self._Report__getHazardDictionary()
+                # TODO add compatibility for probabilistic vs deterministic, etc
+                gdf = hazardDict[list(hazardDict.keys())[0]]
+                title = list(hazardDict.keys())[0]
+                # limit the extent
+                gdf = gdf[gdf['PARAMVALUE'] > 0.1]
+                self.addMap(gdf, title=title,
+                            column='right', field='PARAMVALUE', cmap='coolwarm')
+
+                # add debris
+                tonsToTruckLoadsCoef = 0.25
+                # populate and format values
+                bwTons = self.addCommas(
+                    results['DebrisBW'].sum(), abbreviate=True)
+                csTons = self.addCommas(
+                    results['DebrisCS'].sum(), abbreviate=True)
+                treeTons = self.addCommas(
+                    results['DebrisTree'].sum(), abbreviate=True)
+                bwTruckLoads = self.addCommas(
+                    results['DebrisBW'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                csTruckLoads = self.addCommas(
+                    results['DebrisCS'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                treeTruckLoads = self.addCommas(
+                    results['DebrisTree'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                # populate totals
+                totalTons = self.addCommas(
+                    results['DebrisTotal'].sum(), abbreviate=True)
+                totalTruckLoads = self.addCommas(
+                    results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
+                # build data dictionary
+                data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel', 'Tree'], 'Tons': [
+                    bwTons, csTons, treeTons], 'Truck Loads': [bwTruckLoads, csTruckLoads, treeTruckLoads]}
+                # create DataFrame from data dictionary
+                debris = pd.DataFrame(
+                    data, columns=['Debris Type', 'Tons', 'Truck Loads'])
+                self.addTable(debris, 'Debris', total, 'right')
+
             if hazard == 'tsunami':
-                pass
+                # get bulk of results
+                results = self._Report__getResults()
+                results = results.addGeometry()
+
+                # add building damage by occupancy
+                buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
+                # create category column
+                buildingDamageByOccupancy['xCol'] = [
+                    x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
+                # create new columns for major and destroyed
+                buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
+                    buildingDamageByOccupancy['Destroyed']
+                # list columns to group for each category
+                yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
+                                  'Building Damage By Occupancy', 'Structures', 'left')
+
+                # add economic loss
+                economicLoss = results[['block', 'EconLoss']]
+                economicLoss.columns = ['Top Census Tracts', 'Economic Loss']
+                # populate total
+                total = self.addCommas(
+                    economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
+                # limit rows to the highest values
+                economicLoss = economicLoss.sort_values(
+                    'Economic Loss', ascending=False)[0:tableRowLimit]
+                # format values
+                economicLoss['Economic Loss'] = [self.toDollars(
+                    x, abbreviate=True) for x in economicLoss['Economic Loss']]
+                self.addTable(
+                    economicLoss, 'Total Economic Loss', total, 'left')
+
+                # add injuries and fatatilies
+                injuriesAndFatatilies = results[['block']]
+                injuriesAndFatatilies.columns = ['Top Census Tracts']
+                injuriesAndFatatilies['Injuries Day'] = results['Injuries_DayGood']
+                injuriesAndFatatilies['Injuries Night'] = results['Injuries_NightGood']
+                injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_DayGood']
+                injuriesAndFatatilies['Fatalities Night'] = results['Fatalities_NightGood']
+                # populate totals
+                totalDay = self.addCommas(
+                    (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalities Day']).sum(), abbreviate=True) + ' Day'
+                totalNight = self.addCommas(
+                    (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalities Night']).sum(), abbreviate=True) + ' Night'
+                total = totalDay + '/' + totalNight
+                # limit rows to the highest values
+                injuriesAndFatatilies = injuriesAndFatatilies.sort_values(
+                    'Injuries Day', ascending=False)[0:tableRowLimit]
+                # format values
+                for column in injuriesAndFatatilies:
+                    if column != 'Top Census Tracts':
+                        injuriesAndFatatilies[column] = [self.addCommas(
+                            x, abbreviate=True) for x in injuriesAndFatatilies[column]]
+
+                self.addTable(injuriesAndFatatilies,
+                              'Injuries and Fatatilies', total, 'left')
+
+                # add economic loss map
+                economicLoss = results[['block', 'EconLoss', 'geometry']]
+                # convert to GeoDataFrame
+                economicLoss.geometry = economicLoss.geometry.apply(loads)
+                gdf = gpd.GeoDataFrame(economicLoss)
+                self.addMap(gdf, title='Economic Loss by Census Tract',
+                            column='right', field='EconLoss', cmap='OrRd')
+
+                # add hazard map
+                hazardDict = self._Report__getHazardDictionary()
+                # TODO add compatibility for probabilistic vs deterministic, etc
+                gdf = hazardDict[list(hazardDict.keys())[0]]
+                title = list(hazardDict.keys())[0]
+                self.addMap(gdf, title=title,
+                            column='right', field='PARAMVALUE', cmap='Blues')
+
+                # add travel time to safety map
+                travelTimeToSafety = self._Report__getTravelTimeToSafety()
+                # TODO add compatibility for probabilistic vs deterministic, etc
+                title = 'Travel Time to Safety'
+                self.addMap(travelTimeToSafety, title=title,
+                            column='right', field='travelTimeOver65yo', cmap='YlOrRd')
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
