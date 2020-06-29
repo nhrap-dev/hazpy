@@ -1016,7 +1016,7 @@ class Report():
                     results = results.addGeometry()
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add building damage by occupancy
                 try:
@@ -1033,7 +1033,7 @@ class Report():
                                       'Building Damage By Occupancy', 'Buildings', 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add economic loss
                 try:
@@ -1053,7 +1053,7 @@ class Report():
                         economicLoss, 'Total Economic Loss', total, 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add essential facilities
                 try:
@@ -1069,7 +1069,7 @@ class Report():
                                       'Damaged Essential Facilities', 'Total Facilities', 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add displaced households and shelter needs
                 try:
@@ -1095,7 +1095,7 @@ class Report():
                         displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add economic loss map
                 try:
@@ -1107,7 +1107,7 @@ class Report():
                                 column='right', field='EconLoss', cmap='OrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add hazard map
                 try:
@@ -1121,7 +1121,7 @@ class Report():
                                 column='right', field='PARAMVALUE', cmap='coolwarm')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add debris
                 try:
@@ -1153,7 +1153,7 @@ class Report():
                     self.addTable(debris, 'Debris', total, 'right')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
             if hazard == 'tsunami':
                 # get bulk of results
@@ -1162,7 +1162,7 @@ class Report():
                     results = results.addGeometry()
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add building damage by occupancy
                 try:
@@ -1179,7 +1179,7 @@ class Report():
                                       'Building Damage By Occupancy', 'Buildings', 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add economic loss
                 try:
@@ -1199,7 +1199,7 @@ class Report():
                         economicLoss, 'Total Economic Loss', total, 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add injuries and fatatilies
                 try:
@@ -1228,7 +1228,7 @@ class Report():
                                   'Injuries and Fatatilies', total, 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add economic loss map
                 try:
@@ -1240,7 +1240,7 @@ class Report():
                                 column='right', field='EconLoss', cmap='OrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add hazard map
                 try:
@@ -1252,7 +1252,7 @@ class Report():
                                 column='right', field='PARAMVALUE', cmap='Blues')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
 
                 # add travel time to safety map
                 try:
@@ -1262,7 +1262,7 @@ class Report():
                                 column='right', field='travelTimeOver65yo', cmap='YlOrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    breakpoint()
+                    pass
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
