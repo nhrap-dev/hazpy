@@ -1,6 +1,9 @@
 import pandas as pd
 import geopandas as gpd
 import sys
+from shapely.wkt import loads
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.polygon import Polygon
 
 
 class StudyRegionDataFrame(pd.DataFrame):

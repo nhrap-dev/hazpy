@@ -6,20 +6,14 @@ import geopandas as gpd
 from shapely.wkt import loads
 
 from matplotlib import pyplot as plt
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 import matplotlib.patheffects as pe
-from matplotlib.collections import PatchCollection
 import matplotlib.ticker as ticker
-from matplotlib.patches import Polygon
-from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 import shapely
-from jenkspy import jenks_breaks as nb
 import numpy as np
 import shutil
 
-import contextily as ctx
 import sys
 from uuid import uuid4 as uuid
 
@@ -102,6 +96,7 @@ class Report():
             number = int(round(number))
         if abbreviate:
             dollars = self.abbreviate(number)
+            dollars = '$' + dollars
         else:
             dollars = '$'+"{:,}".format(number)
             dollarsSplit = dollars.split('.')

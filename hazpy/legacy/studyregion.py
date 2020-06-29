@@ -71,7 +71,7 @@ class StudyRegion():
         """
         try:
             df = pd.read_sql(sql, self.conn)
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -85,7 +85,7 @@ class StudyRegion():
         try:
             sql = 'SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % self.name
             df = self.query(sql)
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -98,12 +98,13 @@ class StudyRegion():
                 df: pandas dataframe -- a dataframe of economic loss
         """
         try:
-
+            # constant to convert to real USD
+            constant = 1000
             sqlDict = {
-                'earthquake': """select Tract as tract, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.[eqTractEconLoss] group by [eqTractEconLoss].Tract""".format(s=self.name),
-                'flood': """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.flFRGBSEcLossByTotal group by CensusBlock""".format(s=self.name),
-                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) as EconLoss from {s}.dbo.[huSummaryLoss] group by Tract""".format(s=self.name),
-                'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name)
+                'earthquake': """select Tract as tract, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.[eqTractEconLoss] group by [eqTractEconLoss].Tract""".format(s=self.name, c=constant),
+                'flood': """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0))* {c} as EconLoss from {s}.dbo.flFRGBSEcLossByTotal group by CensusBlock""".format(s=self.name, c=constant),
+                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] group by Tract""".format(s=self.name, c=constant),
+                'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name, c=constant)
             }
 
             df = self.query(sqlDict[self.hazards[0]])
@@ -210,7 +211,7 @@ class StudyRegion():
             }
 
             df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -263,7 +264,7 @@ class StudyRegion():
             }
 
             df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -316,7 +317,7 @@ class StudyRegion():
                 df = pd.DataFrame(columns=['block', 'Injuries'])
             else:
                 df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -366,7 +367,7 @@ class StudyRegion():
                 df = pd.DataFrame(columns=['block', 'Fatalities'])
             else:
                 df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -392,7 +393,7 @@ class StudyRegion():
                 df = pd.DataFrame(columns=['block', 'DisplacedHouseholds'])
             else:
                 df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -417,7 +418,7 @@ class StudyRegion():
                 df = pd.DataFrame(columns=['block', 'ShelterNeeds'])
             else:
                 df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -429,16 +430,17 @@ class StudyRegion():
                 df: pandas dataframe -- a dataframe of debris
         """
         try:
+            constant = 1000
             # NOTE debris not available for tsunami model - placeholder below
             sqlDict = {
-                'earthquake': """select Tract as tract, SUM(DebrisW) as DebrisBW, SUM(DebrisS) as DebrisCS, SUM(DebrisTotal) as DebrisTotal from {s}.dbo.eqTract group by Tract""".format(s=self.name),
-                'flood': """select CensusBlock as block, (SUM(FinishTons) * 2000) as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name),
-                'hurricane': """select Tract as tract, SUM(BRICKANDWOOD) as DebrisBW, SUM(CONCRETEANDSTEEL) as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT group by Tract""".format(s=self.name),
-                'tsunami': """select CensusBlock as block, (SUM(FinishTons) * 2000) as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name)
+                'earthquake': """select Tract as tract, SUM(DebrisW) * {c} as DebrisBW, SUM(DebrisS) * {c} as DebrisCS, SUM(DebrisTotal) * {c} as DebrisTotal from {s}.dbo.eqTract group by Tract""".format(s=self.name, c=constant),
+                'flood': """select CensusBlock as block, SUM(FinishTons) * {c} as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name, c=constant),
+                'hurricane': """select Tract as tract, SUM(BRICKANDWOOD) * {c} as DebrisBW, SUM(CONCRETEANDSTEEL) * {c} as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT group by Tract""".format(s=self.name, c=constant),
+                'tsunami': """select CensusBlock as block, SUM(FinishTons) * {c} as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name, c=constant)
             }
 
             df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -736,7 +738,7 @@ class StudyRegion():
             if len(essentialFacilityDataFrames) > 0:
                 essentialFacilityDf = pd.concat(
                     [x for x in essentialFacilityDataFrames.values()])
-                return essentialFacilityDf
+                return StudyRegionDataFrame(self, essentialFacilityDf)
             else:
                 print("Returned empty results for " + self.hazards[0])
         except:
@@ -765,7 +767,7 @@ class StudyRegion():
             }
 
             df = self.query(sqlDict[self.hazards[0]])
-            return df
+            return StudyRegionDataFrame(self, df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
