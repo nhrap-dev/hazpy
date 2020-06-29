@@ -484,40 +484,40 @@ class StudyRegion():
             if hazard == 'earthquake':
                 path = 'C:/HazusData/Regions/'+self.name+'/shape/pga.shp'
                 gdf = gpd.read_file(path)
-                hazardDict['Peak Ground Acceleration'] = gdf
+                hazardDict['Peak Ground Acceleration (g)'] = gdf
             if hazard == 'flood':
                 sql = """SELECT [StudyCaseName] FROM {s}.[dbo].[flStudyCase]""".format(
                     s=self.name)
                 scenarios = self.query(sql)
                 for scenario in scenarios['StudyCaseName']:
                     paths = {
-                        'Deterministic Riverine '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Deterministic Riverine': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Riverine/Depth/mix0/w001001.adf',
-                        'Deterministic Coastal '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Deterministic Coastal': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Coastal/Depth/mix0/w001001.adf',
-                        'Probabilistic Riverine 5 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Riverine 5-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Riverine/Depth/rpd5/w001001.adf',
-                        'Probabilistic Riverine 10 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Riverine 10-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Riverine/Depth/rpd10/w001001.adf',
-                        'Probabilistic Riverine 25 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Riverine 25-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Riverine/Depth/rpd25/w001001.adf',
-                        'Probabilistic Riverine 50 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Riverine 50-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Riverine/Depth/rpd50/w001001.adf',
-                        'Probabilistic Riverine 100 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Riverine 100-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Riverine/Depth/rpd100/w001001.adf',
-                        'Probabilistic Riverine 500 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Riverine 500-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Riverine/Depth/rpd500/w001001.adf',
-                        'Probabilistic Coastal 5 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Coastal 5-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Coastal/Depth/rpd5/w001001.adf',
-                        'Probabilistic Coastal 10 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Coastal 10-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Coastal/Depth/rpd10/w001001.adf',
-                        'Probabilistic Coastal 25 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Coastal 25-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Coastal/Depth/rpd25/w001001.adf',
-                        'Probabilistic Coastal 50 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Coastal 50-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Coastal/Depth/rpd50/w001001.adf',
-                        'Probabilistic Coastal 100 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Coastal 100-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Coastal/Depth/rpd100/w001001.adf',
-                        'Probabilistic Coastal 500 '+scenario: 'C:/HazusData/Regions/'+self.name+'/' +
+                        'Water Depth (ft) - Probabilistic Coastal 500-year': 'C:/HazusData/Regions/'+self.name+'/' +
                         scenario+'/Coastal/Depth/rpd500/w001001.adf',
                     }
                     for key in paths.keys():
@@ -544,21 +544,21 @@ class StudyRegion():
             if hazard == 'hurricane':
                 try:
                     queries = {
-                        'Deterministic Wind Speeds': 'SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults]'.format(
+                        'Wind Speeds (mph) - Deterministic': 'SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults]'.format(
                             s=self.name),
-                        'Probabilistic Wind Speeds 10': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr > 0'.format(
+                        'Wind Speeds (mph) - Probabilistic 10-year': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr > 0'.format(
                             s=self.name),
-                        'Probabilistic Wind Speeds 20': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr > 0'.format(
+                        'Wind Speeds (mph) - Probabilistic 20-year': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr > 0'.format(
                             s=self.name),
-                        'Probabilistic Wind Speeds 50': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr > 0'.format(
+                        'Wind Speeds (mph) - Probabilistic 50-year': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr > 0'.format(
                             s=self.name),
-                        'Probabilistic Wind Speeds 100': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr > 0'.format(
+                        'Wind Speeds (mph) - Wind Speeds 100-year': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr > 0'.format(
                             s=self.name),
-                        'Probabilistic Wind Speeds 200': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr > 0'.format(
+                        'Wind Speeds (mph) - Probabilistic 200-year': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr > 0'.format(
                             s=self.name),
-                        'Probabilistic Wind Speeds 500': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr > 0'.format(
+                        'Wind Speeds (mph) - Probabilistic 500-year': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr > 0'.format(
                             s=self.name),
-                        'Probabilistic Wind Speeds 1000': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr > 0'.format(
+                        'Wind Speeds (mph) - Probabilistic 1000-year': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr > 0'.format(
                             s=self.name)
                     }
                     for key in queries.keys():
@@ -594,7 +594,7 @@ class StudyRegion():
                         pass
                 gdf = gpd.GeoDataFrame.from_features(geoms)
                 gdf.PARAMVALUE[gdf.PARAMVALUE > 60] = 0
-                hazardDict['Water Depth'] = gdf
+                hazardDict['Water Depth (ft)'] = gdf
             return hazardDict
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -630,105 +630,108 @@ class StudyRegion():
             for facility in essentialFacilities:
                 try:
                     # get Id column name
-
-                    sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'""" + \
-                        prefix+facility+"""' AND COLUMN_NAME LIKE '"""+facility+"""%'"""
+                    sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'{p}{f}' AND COLUMN_NAME LIKE '{f}%'""".format(
+                        f=facility, p=prefix)
                     df = self.query(sql)
                     if len(df) < 1:
-                        sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'""" + \
-                            prefix+facility+"""' AND COLUMN_NAME LIKE '%Id'"""
+                        sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'{p}{f}' AND COLUMN_NAME LIKE '%Id'""".format(
+                            f=facility, p=prefix)
                         df = self.query(sql)
-                    idColumn = df.fieldName[0]
 
-                    # get dataframe from hazus db
-                    sqlDict = {
-                        'earthquake': """
-                            SELECT
-                                impact.FacilityID,
-                                impact.FacilityType,
-                                impact.Affected,
-                                impact.Minor,
-                                impact.Major,
-                                impact.Destroyed,
-                                impact.EconLoss,
-                                hz.[Name],
-                                hz.[geometry]
-                                FROM
-                                (SELECT
-                                    ["""+idColumn+"""] as FacilityID,
-                                    '"""+facility+"""' as "FacilityType",
-                                    [PDsSlight] as Affected,
-                                    [PDsModerate] as Minor,
-                                    [PDsExtensive] as Major,
-                                    [PDsComplete] as Destroyed,
-                                    [EconLoss]
-                                    from ["""+self.name+"""].[dbo].["""+prefix+facility+"""]
-                                    where EconLoss > 0) impact
-                                left join
-                                (SELECT
-                                    ["""+idColumn+"""] as FacilityID,
-                                    [Name],
-                                    Shape.STAsText() as geometry
-                                    from ["""+self.name+"""].[dbo].[hz"""+facility+"""]) hz
-                                on hz.FacilityID = impact.FacilityID
-                            """,
-                        'hurricane': """
-                            SELECT
-                                impact.FacilityID,
-                                impact.FacilityType,
-                                impact.Affected,
-                                impact.Minor,
-                                impact.Major,
-                                impact.Destroyed,
-                                hz.[Name],
-                                hz.[geometry]
-                                from
-                                (select
-                                        ["""+idColumn+"""] as FacilityID,
-                                        '"""+facility+"""' as "FacilityType",
-                                        MINOR as Affected,
-                                        MODERATE as Minor,
-                                        SEVERE as Major,
-                                        COMPLETE as Destroyed
-                                        from [hu_test].[dbo].["""+prefix+facility+"""]) impact
-                                        left join
-                                    (select
-                                        ["""+idColumn+"""] as FacilityID,
-                                        '"""+facility+"""' as "FacilityType",
+                    # if the essential facility table exists, then proceed
+                    if len(df) > 0:
+                        idColumn = df.fieldName[0]
+                        # get dataframe from hazus db
+
+                        sqlDict = {
+                            'earthquake': """
+                                SELECT
+                                    impact.FacilityID,
+                                    impact.FacilityType,
+                                    impact.Affected,
+                                    impact.Minor,
+                                    impact.Major,
+                                    impact.Destroyed,
+                                    impact.EconLoss,
+                                    hz.[Name],
+                                    hz.[geometry]
+                                    FROM
+                                    (SELECT
+                                        [{i}] as FacilityID,
+                                        '{f}' as "FacilityType",
+                                        [PDsSlight] as Affected,
+                                        [PDsModerate] as Minor,
+                                        [PDsExtensive] as Major,
+                                        [PDsComplete] as Destroyed,
+                                        [EconLoss]
+                                        from [{s}].[dbo].[{p}{f}]
+                                        where EconLoss > 0) impact
+                                    left join
+                                    (SELECT
+                                        [{i}] as FacilityID,
                                         [Name],
                                         Shape.STAsText() as geometry
-                                        from [hu_test].[dbo].[hz"""+facility+"""]) hz
-                                        on hz.FacilityID = impact.FacilityID
-                            """,
-                        'flood': """
-                            SELECT
-                                impact.FacilityID,
-                                impact.FacilityType,
-                                impact.Functionality,
-                                hz.[Name],
-                                hz.[geometry]
-                                from
-                                (select
-                                        ["""+idColumn+"""] as FacilityID,
-                                        '"""+facility+"""' as "FacilityType",
-                                        Functionality
-                                        from [fl_test].[dbo].["""+prefix+facility+"""]) impact
-                                        left join
+                                        from [{s}].[dbo].[hz{f}]) hz
+                                    on hz.FacilityID = impact.FacilityID
+                                """.format(i=idColumn, s=self.name, f=facility, p=prefix),
+                            'hurricane': """
+                                SELECT
+                                    impact.FacilityID,
+                                    impact.FacilityType,
+                                    impact.Affected,
+                                    impact.Minor,
+                                    impact.Major,
+                                    impact.Destroyed,
+                                    hz.[Name],
+                                    hz.[geometry]
+                                    from
                                     (select
-                                        ["""+idColumn+"""] as FacilityID,
-                                        '"""+facility+"""' as "FacilityType",
-                                        [Name],
-                                        Shape.STAsText() as geometry
-                                        from [hu_test].[dbo].[hz"""+facility+"""]) hz
-                                        on hz.FacilityID = impact.FacilityID
-                            """,
-                        'tsunami': None
-                    }
-                    if sqlDict[self.hazards[0]] != None:
-                        df = self.query(sqlDict[self.hazards[0]])
-                        if len(df) > 0:
-                            essentialFacilityDataFrames[facility] = df
+                                            [{i}] as FacilityID,
+                                            '{f}' as "FacilityType",
+                                            MINOR as Affected,
+                                            MODERATE as Minor,
+                                            SEVERE as Major,
+                                            COMPLETE as Destroyed
+                                            from [{s}].[dbo].[{p}{f}]) impact
+                                            left join
+                                        (select
+                                            [{i}] as FacilityID,
+                                            '{f}' as "FacilityType",
+                                            [Name],
+                                            Shape.STAsText() as geometry
+                                            from [{s}].[dbo].[hz{f}]) hz
+                                            on hz.FacilityID = impact.FacilityID
+                                """.format(i=idColumn, s=self.name, f=facility, p=prefix),
+                            'flood': """
+                                SELECT
+                                    impact.FacilityID,
+                                    impact.FacilityType,
+                                    impact.Functionality,
+                                    hz.[Name],
+                                    hz.[geometry]
+                                    from
+                                    (select
+                                            [{i}] as FacilityID,
+                                            '{f}' as "FacilityType",
+                                            Functionality
+                                            from [{s}].[dbo].[{p}{f}]) impact
+                                            left join
+                                        (select
+                                            [{i}] as FacilityID,
+                                            '{f}' as "FacilityType",
+                                            [Name],
+                                            Shape.STAsText() as geometry
+                                            from [{s}].[dbo].[hz{f}]) hz
+                                            on hz.FacilityID = impact.FacilityID
+                                """.format(i=idColumn, s=self.name, f=facility, p=prefix),
+                            'tsunami': None
+                        }
+                        if sqlDict[self.hazards[0]] != None:
+                            df = self.query(sqlDict[self.hazards[0]])
+                            if len(df) > 0:
+                                essentialFacilityDataFrames[facility] = df
                 except:
+                    print("Unexpected error:", sys.exc_info()[0])
                     pass
             if len(essentialFacilityDataFrames) > 0:
                 essentialFacilityDf = pd.concat(

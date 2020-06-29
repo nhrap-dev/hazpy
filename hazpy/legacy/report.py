@@ -21,15 +21,16 @@ import shutil
 
 import contextily as ctx
 import sys
+from uuid import uuid4 as uuid
 
 
 class Report():
     """ -- A StudyRegion helper class --
-    Creates a report object \n
+    Creates a report object. Premade reports are exportable using the save method and specifying the report in the parameter premade. The Report class can also be used as an API to create reports using the addTable, addHistogram, and addMap methods.
 
     Keyword Arguments: \n
-        title: str -- report title \n
-        subtitle: str -- report subtitle \n
+        title: str -- report title
+        subtitle: str -- report subtitle
         icon: str -- report hazard icon (choices: 'earthquake', 'flood', 'hurricane', 'tsunami')
 
     """
@@ -382,12 +383,12 @@ class Report():
             """
 
     def addTable(self, df, title, total, column):
-        """ Adds a table to the report \n
+        """ Adds a table to the report
 
         Keyword Arguments: \n
-            df: pandas dataframe -- expects a StudyRegionDataFrame \n
-            title: str -- section title \n
-            total: str -- total callout box value \n
+            df: pandas dataframe -- expects a StudyRegionDataFrame
+            title: str -- section title
+            total: str -- total callout box value
             column: str -- which column in the report to add to (options: 'left', 'right')
         """
         headers = ['<tr>']
@@ -431,11 +432,11 @@ class Report():
             self.columnRight = self.columnRight + template
 
     def addImage(self, src, title, column):
-        """ Adds image block to the report \n
+        """ Adds image block to the report
 
         Keyword Arguments: \n
-            src: str -- the path and filename of the image \n
-            title: str -- the title of the image \n
+            src: str -- the path and filename of the image
+            title: str -- the title of the image
             column: str -- which column in the report to add to (options: 'left', 'right')
         """
         template = """
@@ -460,16 +461,16 @@ class Report():
         if column == 'right':
             self.columnRight = self.columnRight + template
 
-    def addMap(self, gdf, field, title, column, annotate=True, legend=True, cmap='Blues'):
-        """ Adds a map to the report \n
+    def addMap(self, gdf, field, title, column, countyBoundaries=True, annotate=True, legend=True, cmap='Blues'):
+        """ Adds a map to the report
 
         Keyword Arguments: \n
-            gdf: geopandas geodataframe -- a geodataframe containing the data to be mapped \n
-            field: str -- the field for the choropleth \n
-            title: str -- section title in the report \n
-            column: str -- which column in the report to add to (options: 'left', 'right') \n
-            annotate (optional): bool -- adds top 5 most populated city labels to map \n
-            legend (optional): bool -- adds a colorbar to the map \n
+            gdf: geopandas geodataframe -- a geodataframe containing the data to be mapped
+            field: str -- the field for the choropleth
+            title: str -- section title in the report
+            column: str -- which column in the report to add to (options: 'left', 'right')
+            annotate (optional): bool -- adds top 5 most populated city labels to map
+            legend (optional): bool -- adds a colorbar to the map
             cmap (optional): str -- the colormap used for the choropleth; default = 'Blues'
         """
         """
@@ -498,7 +499,6 @@ class Report():
                     vmin=gdf[field].min(), vmax=gdf[field].max()))
                 sm._A = []
 
-                # colorbarParams = inset_axes(ax, width="99%", height="5%", loc='upper center', bbox_to_anchor=(0.5, 0.05, 0.5, 0.05))
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("top", size="10%", pad="20%")
                 cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
@@ -507,10 +507,15 @@ class Report():
                 fig.axes[0].tick_params(labelsize=fontsize, size=fontsize)
                 fig.axes[1].tick_params(labelsize=fontsize, size=fontsize)
 
-            if annotate == True:
+            if countyBoundaries == True:
                 counties = self.getCounties()
                 counties.plot(facecolor="none",
                               edgecolor="darkgrey", linewidth=0.2, ax=ax)
+            if annotate == True:
+                # get counties if they aren't already assigned
+                if not 'counties' in locals():
+                    counties = self.getCounties()
+
                 annotationDf = counties.sort_values(
                     'size', ascending=False)[0:5]
                 annotationDf = annotationDf.sort_values(
@@ -534,7 +539,7 @@ class Report():
             ax.axis('off')
             if not os.path.isdir(os.getcwd() + '/' + self._tempDirectory):
                 os.mkdir(os.getcwd() + '/' + self._tempDirectory)
-            src = os.getcwd() + '/' + self._tempDirectory + '/'+field+".png"
+            src = os.getcwd() + '/' + self._tempDirectory + '/'+str(uuid())+".png"
             fig.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
             fig.clf()
             plt.clf()
@@ -567,15 +572,15 @@ class Report():
             raise
 
     def addHistogram(self, df, xCol, yCols, title, ylabel, column, colors=['#549534', '#f3de2c', '#bf2f37']):
-        """ Adds a map to the report \n
+        """ Adds a map to the report
 
         Keyword Arguments: \n
-            df: pandas dataframe -- a geodataframe containing the data to be plotted \n
-            xCol: str -- the categorical field \n
-            yCols: list<str> -- the value fields \n
-            title: str -- title for the report section \n
-            ylabel: str -- y-axis label for the units being plotted in the yCols \n
-            column: str -- which column in the report to add to (options: 'left', 'right') \n
+            df: pandas dataframe -- a geodataframe containing the data to be plotted
+            xCol: str -- the categorical field
+            yCols: list<str> -- the value fields
+            title: str -- title for the report section
+            ylabel: str -- y-axis label for the units being plotted in the yCols
+            column: str -- which column in the report to add to (options: 'left', 'right')
             colors (optional if len(yCols) == 3): list<str> -- the colors for each field in yCols - should be same length (default = ['#549534', '#f3de2c', '#bf2f37'])
         """
         """ --- testing ---
@@ -601,17 +606,17 @@ class Report():
                              data=dfPlot, palette=colorPalette)
             ax.set_xlabel('')
             plt.box(on=None)
-            plt.legend(title='', fontsize=6)
-            plt.xticks(fontsize=6)
-            plt.yticks(fontsize=6)
+            plt.legend(title='', fontsize=8)
+            plt.xticks(fontsize=8)
+            plt.yticks(fontsize=8)
             fmt = '{x:,.0f}'
             tick = ticker.StrMethodFormatter(fmt)
             ax.yaxis.set_major_formatter(tick)
-            plt.ylabel(ylabel, fontsize=8)
+            plt.ylabel(ylabel, fontsize=9)
             plt.tight_layout(pad=0.1, h_pad=None, w_pad=None, rect=None)
             if not os.path.isdir(os.getcwd() + '/' + self._tempDirectory):
                 os.mkdir(os.getcwd() + '/' + self._tempDirectory)
-            src = os.getcwd() + '/' + self._tempDirectory + '/'+ylabel+".png"
+            src = os.getcwd() + '/' + self._tempDirectory + '/'+str(uuid())+".png"
             plt.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
             plt.clf()
 
@@ -653,13 +658,13 @@ class Report():
         """
 
     def save(self, path, deleteTemp=True, openFile=True, premade=None):
-        """Creates a PDF of the report \n
+        """Creates a PDF of the report
 
         Keyword Arguments: \n
-            path: str -- the output directory and file name (example: 'C://output_directory/filename.pdf') \n
-            deleteTemp (optional): bool -- delete temp files used to create the report (default: True) \n
-            openFile (optional): bool -- open the PDF after saving (default: True) \n
-            premade (optional): str -- create a premade report (default: None; options: 'earthquake', 'flood', 'hurricane', 'tsunami') \n
+            path: str -- the output directory and file name (example: 'C://output_directory/filename.pdf')
+            deleteTemp (optional): bool -- delete temp files used to create the report (default: True)
+            openFile (optional): bool -- open the PDF after saving (default: True)
+            premade (optional): str -- create a premade report (default: None; options: 'earthquake', 'flood', 'hurricane', 'tsunami')
         """
         try:
             if premade != None:
@@ -697,341 +702,567 @@ class Report():
 
     def buildPremade(self, hazard):
         # TODO remove hazard and make it infer from study region
-        """ Builds a premade report \n
+        """ Builds a premade report
 
         Keyword Arguments: \n
             hazard: str -- the hazard to create the premade report for (options: 'earthquake', 'flood', 'hurricane', 'tsunami')
         """
-        """
-        --- testing ---
-        from hazpy import legacy
-        sr = legacy.StudyRegion('ts_test')
-        sr.report.save('C:/Users/jrainesi/Downloads/REPORT.pdf', premade='tsunami')
-
-        """
         try:
+            # assign constants
             tableRowLimit = 7
+            tonsToTruckLoadsCoef = 0.25
+
             if hazard == 'earthquake':
                 # get bulk of results
-                results = self._Report__getResults()
-                results = results.addGeometry()
+                try:
+                    results = self._Report__getResults()
+                    results = results.addGeometry()
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add building damage by occupancy
-                buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
-                # create category column
-                buildingDamageByOccupancy['xCol'] = [
-                    x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
-                # create new columns for major and destroyed
-                buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
-                    buildingDamageByOccupancy['Destroyed']
-                # list columns to group for each category
-                yCols = ['Affected', 'Minor', 'Major & Destroyed']
-                self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
-                                  'Building Damage By Occupancy', 'Structures', 'left')
+                try:
+                    buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
+                    # create category column
+                    buildingDamageByOccupancy['xCol'] = [
+                        x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
+                    # create new columns for major and destroyed
+                    buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
+                        buildingDamageByOccupancy['Destroyed']
+                    # list columns to group for each category
+                    yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                    self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
+                                      'Building Damage By Occupancy', 'Buildings', 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add economic loss
-                economicLoss = results[['tract', 'EconLoss']]
-                economicLoss.columns = ['Top Census Tracts', 'Economic Loss']
-                # populate total
-                total = self.addCommas(
-                    economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
-                # limit rows to the highest values
-                economicLoss = economicLoss.sort_values(
-                    'Economic Loss', ascending=False)[0:tableRowLimit]
-                # format values
-                economicLoss['Economic Loss'] = [self.toDollars(
-                    x, abbreviate=True) for x in economicLoss['Economic Loss']]
-                self.addTable(
-                    economicLoss, 'Total Economic Loss', total, 'left')
+                try:
+                    economicLoss = results[['tract', 'EconLoss']]
+                    economicLoss.columns = [
+                        'Top Census Tracts', 'Economic Loss']
+                    # populate total
+                    total = self.addCommas(
+                        economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
+                    # limit rows to the highest values
+                    economicLoss = economicLoss.sort_values(
+                        'Economic Loss', ascending=False)[0:tableRowLimit]
+                    # format values
+                    economicLoss['Economic Loss'] = [self.toDollars(
+                        x, abbreviate=True) for x in economicLoss['Economic Loss']]
+                    self.addTable(
+                        economicLoss, 'Total Economic Loss', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add injuries and fatatilies
-                injuriesAndFatatilies = results[['tract']]
-                injuriesAndFatatilies.columns = ['Top Census Tracts']
-                injuriesAndFatatilies['Injuries Day'] = results['Injury_DayLevel1'] + \
-                    results['Injury_DayLevel2'] + results['Injury_DayLevel3']
-                injuriesAndFatatilies['Injuries Night'] = results['Injury_NightLevel1'] + \
-                    results['Injury_NightLevel2'] + \
-                    results['Injury_NightLevel3']
-                injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_Day']
-                injuriesAndFatatilies['Fatalities Night'] = results['Fatalities_Night']
-                # populate totals
-                totalDay = self.addCommas(
-                    (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalities Day']).sum(), abbreviate=True) + ' Day'
-                totalNight = self.addCommas(
-                    (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalities Night']).sum(), abbreviate=True) + ' Night'
-                total = totalDay + '/' + totalNight
-                # limit rows to the highest values
-                injuriesAndFatatilies = injuriesAndFatatilies.sort_values(
-                    'Injuries Day', ascending=False)[0:tableRowLimit]
-                # format values
-                for column in injuriesAndFatatilies:
-                    if column != 'Top Census Tracts':
-                        injuriesAndFatatilies[column] = [self.addCommas(
-                            x, abbreviate=True) for x in injuriesAndFatatilies[column]]
+                try:
+                    injuriesAndFatatilies = results[['tract']]
+                    injuriesAndFatatilies.columns = ['Top Census Tracts']
+                    injuriesAndFatatilies['Injuries Day'] = results['Injury_DayLevel1'] + \
+                        results['Injury_DayLevel2'] + \
+                        results['Injury_DayLevel3']
+                    injuriesAndFatatilies['Injuries Night'] = results['Injury_NightLevel1'] + \
+                        results['Injury_NightLevel2'] + \
+                        results['Injury_NightLevel3']
+                    injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_Day']
+                    injuriesAndFatatilies['Fatalities Night'] = results['Fatalities_Night']
+                    # populate totals
+                    totalDay = self.addCommas(
+                        (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalities Day']).sum(), abbreviate=True) + ' Day'
+                    totalNight = self.addCommas(
+                        (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalities Night']).sum(), abbreviate=True) + ' Night'
+                    total = totalDay + '/' + totalNight
+                    # limit rows to the highest values
+                    injuriesAndFatatilies = injuriesAndFatatilies.sort_values(
+                        'Injuries Day', ascending=False)[0:tableRowLimit]
+                    # format values
+                    for column in injuriesAndFatatilies:
+                        if column != 'Top Census Tracts':
+                            injuriesAndFatatilies[column] = [self.addCommas(
+                                x, abbreviate=True) for x in injuriesAndFatatilies[column]]
 
-                self.addTable(injuriesAndFatatilies,
-                              'Injuries and Fatatilies', total, 'left')
+                    self.addTable(injuriesAndFatatilies,
+                                  'Injuries and Fatatilies', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add displaced households and shelter needs
-                displacedAndShelter = results[[
-                    'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
-                displacedAndShelter.columns = [
-                    'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
-                # populate totals
-                totalDisplaced = self.addCommas(
-                    displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
-                totalShelter = self.addCommas(
-                    displacedAndShelter['People Needing Shelter'].sum(), abbreviate=True)
-                total = totalDisplaced + ' Displaced/' + totalShelter + ' Needing Shelter'
-                # limit rows to the highest values
-                displacedAndShelter = displacedAndShelter.sort_values(
-                    'Displaced Households', ascending=False)[0:tableRowLimit]
-                # format values
-                for column in displacedAndShelter:
-                    if column != 'Top Census Tracts':
-                        displacedAndShelter[column] = [self.addCommas(
-                            x, abbreviate=True) for x in displacedAndShelter[column]]
-                self.addTable(
-                    displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
+                try:
+                    displacedAndShelter = results[[
+                        'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
+                    displacedAndShelter.columns = [
+                        'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
+                    # populate totals
+                    totalDisplaced = self.addCommas(
+                        displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
+                    totalShelter = self.addCommas(
+                        displacedAndShelter['People Needing Shelter'].sum(), abbreviate=True)
+                    total = totalDisplaced + ' Displaced/' + totalShelter + ' Needing Shelter'
+                    # limit rows to the highest values
+                    displacedAndShelter = displacedAndShelter.sort_values(
+                        'Displaced Households', ascending=False)[0:tableRowLimit]
+                    # format values
+                    for column in displacedAndShelter:
+                        if column != 'Top Census Tracts':
+                            displacedAndShelter[column] = [self.addCommas(
+                                x, abbreviate=True) for x in displacedAndShelter[column]]
+                    self.addTable(
+                        displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add economic loss map
-                economicLoss = results[['tract', 'EconLoss', 'geometry']]
-                # convert to GeoDataFrame
-                economicLoss.geometry = economicLoss.geometry.apply(loads)
-                gdf = gpd.GeoDataFrame(economicLoss)
-                self.addMap(gdf, title='Economic Loss by Census Tract',
-                            column='right', field='EconLoss', cmap='OrRd')
+                try:
+                    economicLoss = results[['tract', 'EconLoss', 'geometry']]
+                    # convert to GeoDataFrame
+                    economicLoss.geometry = economicLoss.geometry.apply(loads)
+                    gdf = gpd.GeoDataFrame(economicLoss)
+                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)',
+                                column='right', field='EconLoss', cmap='OrRd')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add hazard map
-                hazardDict = self._Report__getHazardDictionary()
-                gdf = hazardDict['Peak Ground Acceleration']
-                # limit the extent
-                gdf = gdf[gdf['PARAMVALUE'] > 0.1]
-                self.addMap(gdf, title='Peak Ground Acceleration',
-                            column='right', field='PARAMVALUE', cmap='coolwarm')
+                try:
+                    hazardDict = self._Report__getHazardDictionary()
+                    title = list(hazardDict.keys())[0]
+                    gdf = hazardDict[title]
+                    # limit the extent
+                    gdf = gdf[gdf['PARAMVALUE'] > 0.1]
+                    self.addMap(gdf, title=title,
+                                column='right', field='PARAMVALUE', cmap='coolwarm')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add debris
-                tonsToTruckLoadsCoef = 0.25
-                # populate and format values
-                bwTons = self.addCommas(
-                    results['DebrisBW'].sum(), abbreviate=True)
-                csTons = self.addCommas(
-                    results['DebrisCS'].sum(), abbreviate=True)
-                bwTruckLoads = self.addCommas(
-                    results['DebrisBW'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
-                csTruckLoads = self.addCommas(
-                    results['DebrisCS'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
-                # populate totals
-                totalTons = self.addCommas(
-                    results['DebrisTotal'].sum(), abbreviate=True)
-                totalTruckLoads = self.addCommas(
-                    results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
-                total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
-                # build data dictionary
-                data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel'], 'Tons': [
-                    bwTons, csTons], 'Truck Loads': [bwTruckLoads, csTruckLoads]}
-                # create DataFrame from data dictionary
-                debris = pd.DataFrame(
-                    data, columns=['Debris Type', 'Tons', 'Truck Loads'])
-                self.addTable(debris, 'Debris', total, 'right')
+                try:
+                    # populate and format values
+                    bwTons = self.addCommas(
+                        results['DebrisBW'].sum(), abbreviate=True)
+                    csTons = self.addCommas(
+                        results['DebrisCS'].sum(), abbreviate=True)
+                    bwTruckLoads = self.addCommas(
+                        results['DebrisBW'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    csTruckLoads = self.addCommas(
+                        results['DebrisCS'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    # populate totals
+                    totalTons = self.addCommas(
+                        results['DebrisTotal'].sum(), abbreviate=True)
+                    totalTruckLoads = self.addCommas(
+                        results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
+                    # build data dictionary
+                    data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel'], 'Tons': [
+                        bwTons, csTons], 'Truck Loads': [bwTruckLoads, csTruckLoads]}
+                    # create DataFrame from data dictionary
+                    debris = pd.DataFrame(
+                        data, columns=['Debris Type', 'Tons', 'Truck Loads'])
+                    self.addTable(debris, 'Debris', total, 'right')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
             if hazard == 'flood':
-                # TODO add flood export
-                pass
-            if hazard == 'hurricane':
                 # get bulk of results
-                results = self._Report__getResults()
-                results = results.addGeometry()
+                try:
+                    results = self._Report__getResults()
+                    results = results.addGeometry()
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
-                # add building damage by occupancy
-                buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
-                # create category column
-                buildingDamageByOccupancy['xCol'] = [
-                    x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
-                # create new columns for major and destroyed
-                buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
-                    buildingDamageByOccupancy['Destroyed']
-                # list columns to group for each category
-                yCols = ['Affected', 'Minor', 'Major & Destroyed']
-                self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
-                                  'Building Damage By Occupancy', 'Structures', 'left')
+                try:
+                    # add building damage by occupancy
+                    buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
+                    # reorder the columns
+                    cols = buildingDamageByOccupancy.columns.tolist()
+                    cols = [cols[0]] + cols[2:] + [cols[1]]
+                    buildingDamageByOccupancy = buildingDamageByOccupancy[cols]
+                    # list columns to group for each category
+                    yCols = ['Building Loss', 'Content Loss', 'Total Loss']
+                    # rename the columns
+                    buildingDamageByOccupancy.columns = ['Occupancy'] + yCols
+                    # create category column
+                    buildingDamageByOccupancy['xCol'] = [
+                        x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
+                    self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
+                                      'Building Damage By Occupancy', 'Buildings', 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add economic loss
-                economicLoss = results[['tract', 'EconLoss']]
-                economicLoss.columns = ['Top Census Tracts', 'Economic Loss']
-                # populate total
-                total = self.addCommas(
-                    economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
-                # limit rows to the highest values
-                economicLoss = economicLoss.sort_values(
-                    'Economic Loss', ascending=False)[0:tableRowLimit]
-                # format values
-                economicLoss['Economic Loss'] = [self.toDollars(
-                    x, abbreviate=True) for x in economicLoss['Economic Loss']]
-                self.addTable(
-                    economicLoss, 'Total Economic Loss', total, 'left')
+                try:
+                    economicLoss = results[['block', 'EconLoss']]
+                    economicLoss.columns = [
+                        'Top Census Blocks', 'Economic Loss']
+                    # populate total
+                    total = self.addCommas(
+                        economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
+                    # limit rows to the highest values
+                    economicLoss = economicLoss.sort_values(
+                        'Economic Loss', ascending=False)[0:tableRowLimit]
+                    # format values
+                    economicLoss['Economic Loss'] = [self.toDollars(
+                        x, abbreviate=True) for x in economicLoss['Economic Loss']]
+                    self.addTable(
+                        economicLoss, 'Total Economic Loss', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
-                # add essential facilities
-                essentialFacilities = self._Report__getEssentialFacilities()
-                # create category column
-                essentialFacilities.columns = [
-                    x.replace('FacilityType', 'xCol') for x in essentialFacilities.columns]
-                essentialFacilities['Major & Destroyed'] = essentialFacilities['Major'] + \
-                    essentialFacilities['Destroyed']
-                # list columns to group for each category
-                yCols = ['Affected', 'Minor', 'Major & Destroyed']
-                self.addHistogram(essentialFacilities, 'xCol', yCols,
-                                  'Damaged Essential Facilities', 'Total Facilities', 'left')
+                # add building damage by building type
+                try:
+                    buildingDamageByType = self._Report__getBuildingDamageByType()
+                    # reorder the columns
+                    cols = buildingDamageByType.columns.tolist()
+                    cols = [cols[0]] + cols[2:] + [cols[1]]
+                    buildingDamageByType = buildingDamageByType[cols]
+                    # list columns to group for each category
+                    yCols = ['Building Loss', 'Content Loss', 'Total Loss']
+                    # rename the columns & create category column
+                    buildingDamageByType.columns = ['xCol'] + yCols
+                    self.addHistogram(buildingDamageByType, 'xCol', yCols,
+                                      'Building Damage By Type', 'Buildings', 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add displaced households and shelter needs
-                displacedAndShelter = results[[
-                    'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
-                displacedAndShelter.columns = [
-                    'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
-                # populate totals
-                totalDisplaced = self.addCommas(
-                    displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
-                totalShelter = self.addCommas(
-                    displacedAndShelter['People Needing Shelter'].sum(), abbreviate=True)
-                total = totalDisplaced + ' Displaced/' + totalShelter + ' Needing Shelter'
-                # limit rows to the highest values
-                displacedAndShelter = displacedAndShelter.sort_values(
-                    'Displaced Households', ascending=False)[0:tableRowLimit]
-                # format values
-                for column in displacedAndShelter:
-                    if column != 'Top Census Tracts':
-                        displacedAndShelter[column] = [self.addCommas(
-                            x, abbreviate=True) for x in displacedAndShelter[column]]
-                self.addTable(
-                    displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
+                try:
+                    displacedAndShelter = results[[
+                        'block', 'DisplacedHouseholds', 'ShelterNeeds']]
+                    displacedAndShelter.columns = [
+                        'Top Census Blocks', 'Displaced Households', 'People Needing Shelter']
+                    # populate totals
+                    totalDisplaced = self.addCommas(
+                        displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
+                    totalShelter = self.addCommas(
+                        displacedAndShelter['People Needing Shelter'].sum(), abbreviate=True)
+                    total = totalDisplaced + ' Displaced/' + totalShelter + ' Needing Shelter'
+                    # limit rows to the highest values
+                    displacedAndShelter = displacedAndShelter.sort_values(
+                        'Displaced Households', ascending=False)[0:tableRowLimit]
+                    # format values
+                    for column in displacedAndShelter:
+                        if column != 'Top Census Blocks':
+                            displacedAndShelter[column] = [self.addCommas(
+                                x, abbreviate=True) for x in displacedAndShelter[column]]
+                    self.addTable(
+                        displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add economic loss map
-                economicLoss = results[['tract', 'EconLoss', 'geometry']]
-                # convert to GeoDataFrame
-                economicLoss.geometry = economicLoss.geometry.apply(loads)
-                gdf = gpd.GeoDataFrame(economicLoss)
-                self.addMap(gdf, title='Economic Loss by Census Tract',
-                            column='right', field='EconLoss', cmap='OrRd')
+                try:
+                    economicLoss = results[['block', 'EconLoss', 'geometry']]
+                    # convert to GeoDataFrame
+                    economicLoss.geometry = economicLoss.geometry.apply(loads)
+                    gdf = gpd.GeoDataFrame(economicLoss)
+                    self.addMap(gdf, title='Economic Loss by Census Block',
+                                column='right', field='EconLoss', countyBoundaries=False, annotate=False, cmap='OrRd')
+
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add hazard map
-                hazardDict = self._Report__getHazardDictionary()
-                # TODO add compatibility for probabilistic vs deterministic, etc
-                gdf = hazardDict[list(hazardDict.keys())[0]]
-                title = list(hazardDict.keys())[0]
-                # limit the extent
-                gdf = gdf[gdf['PARAMVALUE'] > 0.1]
-                self.addMap(gdf, title=title,
-                            column='right', field='PARAMVALUE', cmap='coolwarm')
+                try:
+                    hazardDict = self._Report__getHazardDictionary()
+                    # TODO add compatibility for probabilistic vs deterministic, etc
+                    title = list(hazardDict.keys())[0]
+                    gdf = hazardDict[title]
+                    self.addMap(gdf, title=title,
+                                column='right', field='PARAMVALUE', countyBoundaries=False, annotate=False, cmap='Blues')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
 
                 # add debris
-                tonsToTruckLoadsCoef = 0.25
-                # populate and format values
-                bwTons = self.addCommas(
-                    results['DebrisBW'].sum(), abbreviate=True)
-                csTons = self.addCommas(
-                    results['DebrisCS'].sum(), abbreviate=True)
-                treeTons = self.addCommas(
-                    results['DebrisTree'].sum(), abbreviate=True)
-                bwTruckLoads = self.addCommas(
-                    results['DebrisBW'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
-                csTruckLoads = self.addCommas(
-                    results['DebrisCS'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
-                treeTruckLoads = self.addCommas(
-                    results['DebrisTree'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
-                # populate totals
-                totalTons = self.addCommas(
-                    results['DebrisTotal'].sum(), abbreviate=True)
-                totalTruckLoads = self.addCommas(
-                    results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
-                total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
-                # build data dictionary
-                data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel', 'Tree'], 'Tons': [
-                    bwTons, csTons, treeTons], 'Truck Loads': [bwTruckLoads, csTruckLoads, treeTruckLoads]}
-                # create DataFrame from data dictionary
-                debris = pd.DataFrame(
-                    data, columns=['Debris Type', 'Tons', 'Truck Loads'])
-                self.addTable(debris, 'Debris', total, 'right')
+                try:
+                    # populate and format values
+                    tons = self.addCommas(
+                        results['DebrisTotal'].sum(), abbreviate=True)
+                    truckLoads = self.addCommas(
+                        results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    # populate totals
+                    totalTons = tons
+                    totalTruckLoads = truckLoads
+                    total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
+                    # build data dictionary
+                    data = {'Debris Type': ['All Debris'], 'Tons': [
+                        tons], 'Truck Loads': [truckLoads]}
+                    # create DataFrame from data dictionary
+                    debris = pd.DataFrame(
+                        data, columns=['Debris Type', 'Tons', 'Truck Loads'])
+                    self.addTable(debris, 'Debris', total, 'right')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    pass
+
+            if hazard == 'hurricane':
+                # get bulk of results
+                try:
+                    results = self._Report__getResults()
+                    results = results.addGeometry()
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
+
+                # add building damage by occupancy
+                try:
+                    buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
+                    # create category column
+                    buildingDamageByOccupancy['xCol'] = [
+                        x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
+                    # create new columns for major and destroyed
+                    buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
+                        buildingDamageByOccupancy['Destroyed']
+                    # list columns to group for each category
+                    yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                    self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
+                                      'Building Damage By Occupancy', 'Buildings', 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
+
+                # add economic loss
+                try:
+                    economicLoss = results[['tract', 'EconLoss']]
+                    economicLoss.columns = [
+                        'Top Census Tracts', 'Economic Loss']
+                    # populate total
+                    total = self.addCommas(
+                        economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
+                    # limit rows to the highest values
+                    economicLoss = economicLoss.sort_values(
+                        'Economic Loss', ascending=False)[0:tableRowLimit]
+                    # format values
+                    economicLoss['Economic Loss'] = [self.toDollars(
+                        x, abbreviate=True) for x in economicLoss['Economic Loss']]
+                    self.addTable(
+                        economicLoss, 'Total Economic Loss', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
+
+                # add essential facilities
+                try:
+                    essentialFacilities = self._Report__getEssentialFacilities()
+                    # create category column
+                    essentialFacilities.columns = [
+                        x.replace('FacilityType', 'xCol') for x in essentialFacilities.columns]
+                    essentialFacilities['Major & Destroyed'] = essentialFacilities['Major'] + \
+                        essentialFacilities['Destroyed']
+                    # list columns to group for each category
+                    yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                    self.addHistogram(essentialFacilities, 'xCol', yCols,
+                                      'Damaged Essential Facilities', 'Total Facilities', 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
+
+                # add displaced households and shelter needs
+                try:
+                    displacedAndShelter = results[[
+                        'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
+                    displacedAndShelter.columns = [
+                        'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
+                    # populate totals
+                    totalDisplaced = self.addCommas(
+                        displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
+                    totalShelter = self.addCommas(
+                        displacedAndShelter['People Needing Shelter'].sum(), abbreviate=True)
+                    total = totalDisplaced + ' Displaced/' + totalShelter + ' Needing Shelter'
+                    # limit rows to the highest values
+                    displacedAndShelter = displacedAndShelter.sort_values(
+                        'Displaced Households', ascending=False)[0:tableRowLimit]
+                    # format values
+                    for column in displacedAndShelter:
+                        if column != 'Top Census Tracts':
+                            displacedAndShelter[column] = [self.addCommas(
+                                x, abbreviate=True) for x in displacedAndShelter[column]]
+                    self.addTable(
+                        displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
+
+                # add economic loss map
+                try:
+                    economicLoss = results[['tract', 'EconLoss', 'geometry']]
+                    # convert to GeoDataFrame
+                    economicLoss.geometry = economicLoss.geometry.apply(loads)
+                    gdf = gpd.GeoDataFrame(economicLoss)
+                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)',
+                                column='right', field='EconLoss', cmap='OrRd')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
+
+                # add hazard map
+                try:
+                    hazardDict = self._Report__getHazardDictionary()
+                    # TODO add compatibility for probabilistic vs deterministic, etc
+                    title = list(hazardDict.keys())[0]
+                    gdf = hazardDict[title]
+                    # limit the extent
+                    gdf = gdf[gdf['PARAMVALUE'] > 0.1]
+                    self.addMap(gdf, title=title,
+                                column='right', field='PARAMVALUE', cmap='coolwarm')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
+
+                # add debris
+                try:
+                    # populate and format values
+                    bwTons = self.addCommas(
+                        results['DebrisBW'].sum(), abbreviate=True)
+                    csTons = self.addCommas(
+                        results['DebrisCS'].sum(), abbreviate=True)
+                    treeTons = self.addCommas(
+                        results['DebrisTree'].sum(), abbreviate=True)
+                    bwTruckLoads = self.addCommas(
+                        results['DebrisBW'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    csTruckLoads = self.addCommas(
+                        results['DebrisCS'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    treeTruckLoads = self.addCommas(
+                        results['DebrisTree'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    # populate totals
+                    totalTons = self.addCommas(
+                        results['DebrisTotal'].sum(), abbreviate=True)
+                    totalTruckLoads = self.addCommas(
+                        results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
+                    # build data dictionary
+                    data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel', 'Tree'], 'Tons': [
+                        bwTons, csTons, treeTons], 'Truck Loads': [bwTruckLoads, csTruckLoads, treeTruckLoads]}
+                    # create DataFrame from data dictionary
+                    debris = pd.DataFrame(
+                        data, columns=['Debris Type', 'Tons', 'Truck Loads'])
+                    self.addTable(debris, 'Debris', total, 'right')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
 
             if hazard == 'tsunami':
                 # get bulk of results
-                results = self._Report__getResults()
-                results = results.addGeometry()
+                try:
+                    results = self._Report__getResults()
+                    results = results.addGeometry()
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
 
                 # add building damage by occupancy
-                buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
-                # create category column
-                buildingDamageByOccupancy['xCol'] = [
-                    x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
-                # create new columns for major and destroyed
-                buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
-                    buildingDamageByOccupancy['Destroyed']
-                # list columns to group for each category
-                yCols = ['Affected', 'Minor', 'Major & Destroyed']
-                self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
-                                  'Building Damage By Occupancy', 'Structures', 'left')
+                try:
+                    buildingDamageByOccupancy = self._Report__getBuildingDamageByOccupancy()
+                    # create category column
+                    buildingDamageByOccupancy['xCol'] = [
+                        x[0:3] for x in buildingDamageByOccupancy['Occupancy']]
+                    # create new columns for major and destroyed
+                    buildingDamageByOccupancy['Major & Destroyed'] = buildingDamageByOccupancy['Major'] + \
+                        buildingDamageByOccupancy['Destroyed']
+                    # list columns to group for each category
+                    yCols = ['Affected', 'Minor', 'Major & Destroyed']
+                    self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
+                                      'Building Damage By Occupancy', 'Buildings', 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
 
                 # add economic loss
-                economicLoss = results[['block', 'EconLoss']]
-                economicLoss.columns = ['Top Census Tracts', 'Economic Loss']
-                # populate total
-                total = self.addCommas(
-                    economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
-                # limit rows to the highest values
-                economicLoss = economicLoss.sort_values(
-                    'Economic Loss', ascending=False)[0:tableRowLimit]
-                # format values
-                economicLoss['Economic Loss'] = [self.toDollars(
-                    x, abbreviate=True) for x in economicLoss['Economic Loss']]
-                self.addTable(
-                    economicLoss, 'Total Economic Loss', total, 'left')
+                try:
+                    economicLoss = results[['block', 'EconLoss']]
+                    economicLoss.columns = [
+                        'Top Census Tracts', 'Economic Loss']
+                    # populate total
+                    total = self.addCommas(
+                        economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
+                    # limit rows to the highest values
+                    economicLoss = economicLoss.sort_values(
+                        'Economic Loss', ascending=False)[0:tableRowLimit]
+                    # format values
+                    economicLoss['Economic Loss'] = [self.toDollars(
+                        x, abbreviate=True) for x in economicLoss['Economic Loss']]
+                    self.addTable(
+                        economicLoss, 'Total Economic Loss', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
 
                 # add injuries and fatatilies
-                injuriesAndFatatilies = results[['block']]
-                injuriesAndFatatilies.columns = ['Top Census Tracts']
-                injuriesAndFatatilies['Injuries Day'] = results['Injuries_DayGood']
-                injuriesAndFatatilies['Injuries Night'] = results['Injuries_NightGood']
-                injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_DayGood']
-                injuriesAndFatatilies['Fatalities Night'] = results['Fatalities_NightGood']
-                # populate totals
-                totalDay = self.addCommas(
-                    (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalities Day']).sum(), abbreviate=True) + ' Day'
-                totalNight = self.addCommas(
-                    (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalities Night']).sum(), abbreviate=True) + ' Night'
-                total = totalDay + '/' + totalNight
-                # limit rows to the highest values
-                injuriesAndFatatilies = injuriesAndFatatilies.sort_values(
-                    'Injuries Day', ascending=False)[0:tableRowLimit]
-                # format values
-                for column in injuriesAndFatatilies:
-                    if column != 'Top Census Tracts':
-                        injuriesAndFatatilies[column] = [self.addCommas(
-                            x, abbreviate=True) for x in injuriesAndFatatilies[column]]
+                try:
+                    injuriesAndFatatilies = results[['block']]
+                    injuriesAndFatatilies.columns = ['Top Census Tracts']
+                    injuriesAndFatatilies['Injuries Day'] = results['Injuries_DayGood']
+                    injuriesAndFatatilies['Injuries Night'] = results['Injuries_NightGood']
+                    injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_DayGood']
+                    injuriesAndFatatilies['Fatalities Night'] = results['Fatalities_NightGood']
+                    # populate totals
+                    totalDay = self.addCommas(
+                        (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalities Day']).sum(), abbreviate=True) + ' Day'
+                    totalNight = self.addCommas(
+                        (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalities Night']).sum(), abbreviate=True) + ' Night'
+                    total = totalDay + '/' + totalNight
+                    # limit rows to the highest values
+                    injuriesAndFatatilies = injuriesAndFatatilies.sort_values(
+                        'Injuries Day', ascending=False)[0:tableRowLimit]
+                    # format values
+                    for column in injuriesAndFatatilies:
+                        if column != 'Top Census Tracts':
+                            injuriesAndFatatilies[column] = [self.addCommas(
+                                x, abbreviate=True) for x in injuriesAndFatatilies[column]]
 
-                self.addTable(injuriesAndFatatilies,
-                              'Injuries and Fatatilies', total, 'left')
+                    self.addTable(injuriesAndFatatilies,
+                                  'Injuries and Fatatilies', total, 'left')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
 
                 # add economic loss map
-                economicLoss = results[['block', 'EconLoss', 'geometry']]
-                # convert to GeoDataFrame
-                economicLoss.geometry = economicLoss.geometry.apply(loads)
-                gdf = gpd.GeoDataFrame(economicLoss)
-                self.addMap(gdf, title='Economic Loss by Census Tract',
-                            column='right', field='EconLoss', cmap='OrRd')
+                try:
+                    economicLoss = results[['block', 'EconLoss', 'geometry']]
+                    # convert to GeoDataFrame
+                    economicLoss.geometry = economicLoss.geometry.apply(loads)
+                    gdf = gpd.GeoDataFrame(economicLoss)
+                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)',
+                                column='right', field='EconLoss', cmap='OrRd')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
 
                 # add hazard map
-                hazardDict = self._Report__getHazardDictionary()
-                # TODO add compatibility for probabilistic vs deterministic, etc
-                gdf = hazardDict[list(hazardDict.keys())[0]]
-                title = list(hazardDict.keys())[0]
-                self.addMap(gdf, title=title,
-                            column='right', field='PARAMVALUE', cmap='Blues')
+                try:
+                    hazardDict = self._Report__getHazardDictionary()
+                    # TODO add compatibility for probabilistic vs deterministic, etc
+                    title = list(hazardDict.keys())[0]
+                    gdf = hazardDict[title]
+                    self.addMap(gdf, title=title,
+                                column='right', field='PARAMVALUE', cmap='Blues')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
 
                 # add travel time to safety map
-                travelTimeToSafety = self._Report__getTravelTimeToSafety()
-                # TODO add compatibility for probabilistic vs deterministic, etc
-                title = 'Travel Time to Safety'
-                self.addMap(travelTimeToSafety, title=title,
-                            column='right', field='travelTimeOver65yo', cmap='YlOrRd')
+                try:
+                    travelTimeToSafety = self._Report__getTravelTimeToSafety()
+                    title = 'Travel Time to Safety (minutes)'
+                    self.addMap(travelTimeToSafety, title=title,
+                                column='right', field='travelTimeOver65yo', cmap='YlOrRd')
+                except:
+                    print("Unexpected error:", sys.exc_info()[0])
+                    breakpoint()
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise

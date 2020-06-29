@@ -8,7 +8,7 @@ class StudyRegionDataFrame(pd.DataFrame):
         Intializes a study region dataframe class - A pandas dataframe extended with extra methods
 
 
-        Key Argument:
+        Keyword Arguments: \n
             studyRegionClass: StudyRegion -- an initialized StudyRegion class
             df: pandas dataframe -- a dataframe to extend as a StudyRegionDataFrame
 
@@ -80,7 +80,7 @@ class StudyRegionDataFrame(pd.DataFrame):
     def addGeometry(self):
         """ Adds geometry to any HazusDB class dataframe with a census block, tract, or county id
 
-            Key Argument:
+            Keyword Arguments: \n
                 dataframe: pandas dataframe -- a HazusDB generated dataframe with a fips column named either block, tract, or county
             Returns:
                 df: pandas dataframe -- a copy of the input dataframe with the geometry added
@@ -105,7 +105,7 @@ class StudyRegionDataFrame(pd.DataFrame):
     def toCSV(self, path):
         """ Exports a StudyRegionDataFrame to a CSV
 
-            Key Argument:
+            Keyword Arguments: \n
                 path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.csv')
         """
         self.to_csv(path, index=False)
@@ -113,7 +113,7 @@ class StudyRegionDataFrame(pd.DataFrame):
     def toShapefile(self, path):
         """ Exports a StudyRegionDataFrame to an Esri Shapefile
 
-            Key Argument:
+            Keyword Arguments: \n
                 path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.shp')
         """
         try:
@@ -130,7 +130,7 @@ class StudyRegionDataFrame(pd.DataFrame):
     def toGeoJSON(self, path):
         """ Exports a StudyRegionDataFrame to a web compatible GeoJSON
 
-            Key Argument:
+            Keyword Arguments: \n
                 path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.geojson')
         """
         try:
