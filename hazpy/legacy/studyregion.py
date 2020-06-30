@@ -73,7 +73,8 @@ class StudyRegion():
             df = pd.read_sql(sql, self.conn)
             return StudyRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            # uncomment error print only for debugging
+            # print("Unexpected error:", sys.exc_info()[0])
             raise
 
     def getHazardBoundary(self):
@@ -603,8 +604,6 @@ class StudyRegion():
             raise
 
     def getEssentialFacilities(self):
-        # TODO add support for HU, FL, TS
-        # EQ: NaturalGasPl, OilPl, hzWasteWaterPl, hzLevees
         """ Queries the call essential facilities for a study region in local Hazus SQL Server database
 
             Returns:
@@ -631,124 +630,142 @@ class StudyRegion():
             essentialFacilityDataFrames = {}
             for facility in essentialFacilities:
                 try:
-                    # get Id column name
-                    sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'{p}{f}' AND COLUMN_NAME LIKE '{f}%'""".format(
+                    # get all column names for study region table
+                    sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'{p}{f}'""".format(
                         f=facility, p=prefix)
                     df = self.query(sql)
-                    if len(df) < 1:
-                        sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'{p}{f}' AND COLUMN_NAME LIKE '%Id'""".format(
+                    if len(df) > 0:
+                        srcolumns = df['fieldName'].tolist()
+                        # remove confounding columns
+                        if 'StudyCaseId' in srcolumns:
+                            srcolumns.remove('StudyCaseId')
+                        if 'ReturnPeriodId' in srcolumns:
+                            srcolumns.remove('ReturnPeriodId')
+
+                        # get Id column name
+                        idColumnList = [x for x in srcolumns if facility in x]
+                        if len(idColumnList) == 0:
+                            idColumnList = [
+                                x for x in srcolumns if x.endswith('Id')]
+                        idColumn = idColumnList[0]
+
+                        # build query fields for study region table
+                        tempColumns = [x.replace(x, '['+x+']')
+                                       for x in srcolumns]
+                        tempColumns.insert(0, "'"+facility+"'" +
+                                           ' as "FacilityType"')
+                        tempColumns.insert(0, '['+idColumn+'] as FacilityId')
+                        studyRegionColumns = ', '.join(tempColumns)
+
+                        # get all column names for hz table
+                        sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'hz{f}'""".format(
                             f=facility, p=prefix)
                         df = self.query(sql)
+                        hzcolumns = df['fieldName'].tolist()
 
-                    # if the essential facility table exists, then proceed
-                    if len(df) > 0:
-                        idColumn = df.fieldName[0]
-                        # get dataframe from hazus db
+                        # build query fields for hz table
+                        containFields = ['Name', 'City',
+                                         'County', 'State', 'Fips', 'Shape']
+                        # limit fields to containFields
+                        hzcolumns = [x for x in hzcolumns if any(
+                            f in x for f in containFields)]
+                        tempColumns = [x.replace(x, '['+x+']')
+                                       for x in hzcolumns]
+                        tempColumns = [x.replace('[Shape]', 'Shape.STAsText() as geometry')
+                                       for x in tempColumns]
+                        tempColumns = [x.replace('[Statea]', '[Statea] as State')
+                                       for x in tempColumns]
+                        tempColumns.insert(0, '['+idColumn+'] as FacilityId')
+                        hazusColumns = ', '.join(tempColumns)
 
-                        sqlDict = {
-                            'earthquake': """
-                                SELECT
-                                    impact.FacilityID,
-                                    impact.FacilityType,
-                                    impact.Affected,
-                                    impact.Minor,
-                                    impact.Major,
-                                    impact.Destroyed,
-                                    impact.EconLoss,
-                                    hz.[Name],
-                                    hz.[geometry]
-                                    FROM
-                                    (SELECT
-                                        [{i}] as FacilityID,
-                                        '{f}' as "FacilityType",
-                                        [PDsSlight] as Affected,
-                                        [PDsModerate] as Minor,
-                                        [PDsExtensive] as Major,
-                                        [PDsComplete] as Destroyed,
-                                        [EconLoss]
-                                        from [{s}].[dbo].[{p}{f}]
-                                        where EconLoss > 0) impact
-                                    left join
-                                    (SELECT
-                                        [{i}] as FacilityID,
-                                        [Name],
-                                        Shape.STAsText() as geometry
-                                        from [{s}].[dbo].[hz{f}]) hz
-                                    on hz.FacilityID = impact.FacilityID
-                                """.format(i=idColumn, s=self.name, f=facility, p=prefix),
-                            'hurricane': """
-                                SELECT
-                                    impact.FacilityID,
-                                    impact.FacilityType,
-                                    impact.Affected,
-                                    impact.Minor,
-                                    impact.Major,
-                                    impact.Destroyed,
-                                    hz.[Name],
-                                    hz.[geometry]
-                                    from
-                                    (select
-                                            [{i}] as FacilityID,
-                                            '{f}' as "FacilityType",
-                                            MINOR as Affected,
-                                            MODERATE as Minor,
-                                            SEVERE as Major,
-                                            COMPLETE as Destroyed
-                                            from [{s}].[dbo].[{p}{f}]) impact
-                                            left join
-                                        (select
-                                            [{i}] as FacilityID,
-                                            '{f}' as "FacilityType",
-                                            [Name],
-                                            Shape.STAsText() as geometry
+                        # build queryset columns
+                        # replace hzcolumns
+                        hzcolumns = [x.replace('Statea', 'State')
+                                     for x in hzcolumns]
+                        hzcolumns = [x.replace('Shape', 'geometry')
+                                     for x in hzcolumns]
+                        # replace srcolumns
+                        srcolumns = [x.replace(idColumn, 'FacilityId')
+                                     for x in srcolumns]
+                        srcolumns.insert(0, 'FacilityType')
+                        hzcolumnsFinal = ', '.join(
+                            ['hz.' + x for x in hzcolumns])
+                        srcolumnsFinal = ', '.join(
+                            ['sr.' + x for x in srcolumns])
+                        querysetColumns = ', '.join(
+                            [srcolumnsFinal, hzcolumnsFinal])
+
+                        try:
+                            # build dynamic sql query
+                            sql = """
+                                    SELECT
+                                        {qc}
+                                        FROM
+                                        (SELECT
+                                            {src}
+                                            from [{s}].[dbo].[{p}{f}]
+                                            where EconLoss > 0) sr
+                                        left join
+                                        (SELECT
+                                            {hzc}
                                             from [{s}].[dbo].[hz{f}]) hz
-                                            on hz.FacilityID = impact.FacilityID
-                                """.format(i=idColumn, s=self.name, f=facility, p=prefix),
-                            'flood': """
-                                SELECT
-                                    impact.FacilityID,
-                                    impact.FacilityType,
-                                    impact.Functionality,
-                                    hz.[Name],
-                                    hz.[geometry]
-                                    from
-                                    (select
-                                            [{i}] as FacilityID,
-                                            '{f}' as "FacilityType",
-                                            Functionality
-                                            from [{s}].[dbo].[{p}{f}]) impact
-                                            left join
-                                        (select
-                                            [{i}] as FacilityID,
-                                            '{f}' as "FacilityType",
-                                            [Name],
-                                            Shape.STAsText() as geometry
+                                        on hz.FacilityID = sr.FacilityID
+                                    """.format(i=idColumn, s=self.name, f=facility, p=prefix, qc=querysetColumns, src=studyRegionColumns, hzc=hazusColumns)
+
+                            # get queryset from database
+                            df = self.query(sql)
+                        except:
+                            # build dynamic sql query without the where clause
+                            sql = """
+                                    SELECT
+                                        {qc}
+                                        FROM
+                                        (SELECT
+                                            {src}
+                                            from [{s}].[dbo].[{p}{f}]) sr
+                                        left join
+                                        (SELECT
+                                            {hzc}
                                             from [{s}].[dbo].[hz{f}]) hz
-                                            on hz.FacilityID = impact.FacilityID
-                                """.format(i=idColumn, s=self.name, f=facility, p=prefix),
-                            'tsunami': None
-                        }
-                        if sqlDict[self.hazards[0]] != None:
-                            df = self.query(sqlDict[self.hazards[0]])
-                            if len(df) > 0:
-                                essentialFacilityDataFrames[facility] = df
+                                        on hz.FacilityID = sr.FacilityID
+                                    """.format(i=idColumn, s=self.name, f=facility, p=prefix, qc=querysetColumns, src=studyRegionColumns, hzc=hazusColumns)
+
+                            # get queryset from database
+                            df = self.query(sql)
+                        # check if the queryset contains data
+                        if len(df) > 1:
+                            # convert all booleans to string
+                            mask = df.applymap(type) != bool
+                            replaceDict = {True: 'TRUE', False: 'FALSE'}
+                            df = df.where(mask, df.replace(replaceDict))
+                            # add to dictionary
+                            essentialFacilityDataFrames[facility] = df
+                    else:
+                        pass
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
+            # if essentialFacilityDataFrames contains data, concatenate into a dataframe
             if len(essentialFacilityDataFrames) > 0:
                 essentialFacilityDf = pd.concat(
-                    [x for x in essentialFacilityDataFrames.values()])
+                    [x.fillna('null') for x in essentialFacilityDataFrames.values()], sort=False).fillna('null')
                 return StudyRegionDataFrame(self, essentialFacilityDf)
             else:
-                print("Returned empty results for " + self.hazards[0])
+                print("No essential facility loss information for " +
+                      self.name)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
             """
             import hazpy
             sr = hazpy.legacy.StudyRegion('ts_test')
+            ef = sr.getEssentialFacilities()
             ef = sr.getResults()
-            ef.keys()
+            print(ef)
+            print(ef.head())
+            ef.toCSV('C:/Users/jrainesi/Downloads/apples.csv')
+            ef.toShapefile('C:/Users/jrainesi/Downloads/apples.shp')
+            ef.toGeoJSON('C:/Users/jrainesi/Downloads/apples.geojson')
             """
 
     def getDemographics(self):

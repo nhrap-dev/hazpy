@@ -122,8 +122,7 @@ class StudyRegionDataFrame(pd.DataFrame):
         try:
             if 'geometry' not in self.columns:
                 self = self.addGeometry()
-            self['geometry'] = self['geometry'].apply(
-                lambda x: loads(x))
+            self['geometry'] = self['geometry'].apply(lambda x: loads(str(x)))
             gdf = gpd.GeoDataFrame(self, geometry='geometry')
             gdf.to_file(path, driver='ESRI Shapefile')
         except:
@@ -139,13 +138,16 @@ class StudyRegionDataFrame(pd.DataFrame):
         try:
             if 'geometry' not in self.columns:
                 self = self.addGeometry()
-            self['geometry'] = self['geometry'].apply(lambda x: loads(x))
+
+            self['geometry'] = self['geometry'].apply(lambda x: loads(str(x)))
             gdf = gpd.GeoDataFrame(self, geometry='geometry')
-            for index in range(len(gdf['geometry'])):
-                if type(gdf['geometry'][index]) == Polygon:
-                    gdf['geometry'][index] = MultiPolygon(
-                        [gdf['geometry'][index]])
-            # gdf['geometry'].apply(orient, args=(1,))
+            self['geometry'] = [MultiPolygon(
+                [x]) if type(x) == Polygon else x for x in self['geometry']]
+            # for index in range(len(gdf['geometry'])):
+            #     if type(gdf['geometry'][index]) == Polygon:
+            #         gdf['geometry'][index] = MultiPolygon(
+            #             [gdf['geometry'][index]])
+            # gdf['geometry'].apply(orient, args=(1,))self
             gdf.to_file(path, driver='GeoJSON')
         except:
             print("Unexpected error:", sys.exc_info()[0])
