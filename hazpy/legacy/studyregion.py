@@ -84,7 +84,7 @@ class StudyRegion():
                 df: pandas dataframe -- geometry in WKT
         """
         try:
-            sql = 'SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % self.name
+            sql = 'SELECT Shape.STAsText() as geometry from [%s].[dbo].[hzboundary]' % self.name
             df = self.query(sql)
             return StudyRegionDataFrame(self, df)
         except:

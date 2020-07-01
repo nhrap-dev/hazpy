@@ -4,9 +4,9 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="hazpydev",
+    name="hazpy",
     version="0.0.1",
-    author="James Raines,Ujvala K Sharma",
+    author="James Raines, Ujvala K Sharma",
     author_email="james.rainesii@fema.dhs.gov, usharma@niyamit.com, ujvalak_in@yahoo.com",
     description="FEMA - Hazus Open-Source Library",
     long_description=long_description,

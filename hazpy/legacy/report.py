@@ -456,7 +456,7 @@ class Report():
         if column == 'right':
             self.columnRight = self.columnRight + template
 
-    def addMap(self, gdf, field, title, column, countyBoundaries=True, annotate=True, legend=True, cmap='Blues'):
+    def addMap(self, gdf, field, title, column, countyBoundaries=True, annotate=True, legend=True, formatTicks=True, cmap='Blues'):
         """ Adds a map to the report
 
         Keyword Arguments: \n
@@ -498,6 +498,9 @@ class Report():
                 cax = divider.append_axes("top", size="10%", pad="20%")
                 cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
                 cb.outline.set_visible(False)
+                if formatTicks == True:
+                    cb.ax.xaxis.set_major_formatter(
+                        ticker.FuncFormatter(lambda x, p: self.addCommas(x, abbreviate=True, truncate=True)))
                 fontsize = 3
                 fig.axes[0].tick_params(labelsize=fontsize, size=fontsize)
                 fig.axes[1].tick_params(labelsize=fontsize, size=fontsize)
@@ -832,7 +835,7 @@ class Report():
                     # limit the extent
                     gdf = gdf[gdf['PARAMVALUE'] > 0.1]
                     self.addMap(gdf, title=title,
-                                column='right', field='PARAMVALUE', cmap='coolwarm')
+                                column='right', field='PARAMVALUE', formatTicks=False, cmap='coolwarm')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -977,7 +980,7 @@ class Report():
                     title = list(hazardDict.keys())[0]
                     gdf = hazardDict[title]
                     self.addMap(gdf, title=title,
-                                column='right', field='PARAMVALUE', countyBoundaries=False, annotate=False, cmap='Blues')
+                                column='right', field='PARAMVALUE', countyBoundaries=False, annotate=False, formatTicks=False, cmap='Blues')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1113,7 +1116,7 @@ class Report():
                     # limit the extent
                     gdf = gdf[gdf['PARAMVALUE'] > 0.1]
                     self.addMap(gdf, title=title,
-                                column='right', field='PARAMVALUE', cmap='coolwarm')
+                                column='right', field='PARAMVALUE', formatTicks=False, cmap='coolwarm')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1180,7 +1183,7 @@ class Report():
                 try:
                     economicLoss = results[['block', 'EconLoss']]
                     economicLoss.columns = [
-                        'Top Census Tracts', 'Economic Loss']
+                        'Top Census Blocks', 'Economic Loss']
                     # populate total
                     total = self.addCommas(
                         economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
@@ -1199,7 +1202,7 @@ class Report():
                 # add injuries and fatatilies
                 try:
                     injuriesAndFatatilies = results[['block']]
-                    injuriesAndFatatilies.columns = ['Top Census Tracts']
+                    injuriesAndFatatilies.columns = ['Top Census Blocks']
                     injuriesAndFatatilies['Injuries Day'] = results['Injuries_DayGood']
                     injuriesAndFatatilies['Injuries Night'] = results['Injuries_NightGood']
                     injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_DayGood']
@@ -1215,7 +1218,7 @@ class Report():
                         'Injuries Day', ascending=False)[0:tableRowLimit]
                     # format values
                     for column in injuriesAndFatatilies:
-                        if column != 'Top Census Tracts':
+                        if column != 'Top Census Blocks':
                             injuriesAndFatatilies[column] = [self.addCommas(
                                 x, abbreviate=True) for x in injuriesAndFatatilies[column]]
 
@@ -1231,7 +1234,7 @@ class Report():
                     # convert to GeoDataFrame
                     economicLoss.geometry = economicLoss.geometry.apply(loads)
                     gdf = gpd.GeoDataFrame(economicLoss)
-                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)',
+                    self.addMap(gdf, title='Economic Loss by Census Block (USD)',
                                 column='right', field='EconLoss', cmap='OrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
@@ -1244,7 +1247,7 @@ class Report():
                     title = list(hazardDict.keys())[0]
                     gdf = hazardDict[title]
                     self.addMap(gdf, title=title,
-                                column='right', field='PARAMVALUE', cmap='Blues')
+                                column='right', field='PARAMVALUE', formatTicks=False, cmap='Blues')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1254,7 +1257,7 @@ class Report():
                     travelTimeToSafety = self._Report__getTravelTimeToSafety()
                     title = 'Travel Time to Safety (minutes)'
                     self.addMap(travelTimeToSafety, title=title,
-                                column='right', field='travelTimeOver65yo', cmap='YlOrRd')
+                                column='right', field='travelTimeOver65yo', formatTicks=False, cmap='YlOrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
