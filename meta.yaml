@@ -1,4 +1,4 @@
-{% set name = "hazpy" %}
+{% set name = "hazpydev" %}
 {% set version = "0.0.1" %}
 
 package:
