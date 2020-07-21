@@ -93,7 +93,6 @@ test:
     - hazpy.legacy.common
     - hazpy.legacy.hazusdb
     - hazpy.legacy.studyregion
-    - hazpy.legacy.studyregiondataframe
     - hazpy.legacy.report
     - hazpy.tornado
     - hazpy.tsunami
