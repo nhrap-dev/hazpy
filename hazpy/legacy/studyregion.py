@@ -19,7 +19,7 @@ import rasterio as rio
 from rasterio import features
 import numpy as np
 
-from .studyRegionDataFrame import StudyRegionDataFrame
+from .studyregiondataframe import StudyRegionDataFrame
 from .report import Report
 
 
