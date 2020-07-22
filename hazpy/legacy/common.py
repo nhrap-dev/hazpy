@@ -3,6 +3,7 @@ import pandas as pd
 import pyodbc as py
 from sqlalchemy import create_engine
 
+
 def getStudyRegions():
     """Gets all study region names imported into your local Hazus install
 
@@ -11,10 +12,11 @@ def getStudyRegions():
     """
     comp_name = os.environ['COMPUTERNAME']
     conn = py.connect('Driver=ODBC Driver 11 for SQL Server;SERVER=' +
-        comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
-    exclusionRows = ['master', 'tempdb', 'model', 'msdb', 'syHazus', 'CDMS', 'flTmpDB']
+                      comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
+    exclusionRows = ['master', 'tempdb', 'model',
+                     'msdb', 'syHazus', 'CDMS', 'flTmpDB']
     cursor = conn.cursor()
-    cursor.execute('SELECT [StateID] FROM [syHazus].[dbo].[syState]')   
+    cursor.execute('SELECT [StateID] FROM [syHazus].[dbo].[syState]')
     for state in cursor:
         exclusionRows.append(state[0])
     cursor = conn.cursor()
@@ -26,15 +28,17 @@ def getStudyRegions():
     studyRegions.sort(key=lambda x: x.lower())
     return studyRegions
 
+
 class HazusDB():
     """Creates a connection to the Hazus SQL Server database with methods to access
     databases, tables, and study regions
     """
+
     def __init__(self):
         self.conn = self.createConnection()
         self.cursor = self.conn.cursor()
         self.databases = self.getDatabases()
-    
+
     def createConnection(self):
         """ Creates a connection object to the local Hazus SQL Server database
 
@@ -43,7 +47,7 @@ class HazusDB():
         """
         comp_name = os.environ['COMPUTERNAME']
         conn = py.connect('Driver=ODBC Driver 11 for SQL Server;SERVER=' +
-            comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
+                          comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
         self.conn = conn
         return conn
 
@@ -57,12 +61,12 @@ class HazusDB():
             Returns:
                 writeConn: sqlalchemy connection
         """
-        engine = create_engine('mssql+pyodbc://hazuspuser:Gohazusplus_02@.\\HAZUSPLUSSRVR/'+
+        engine = create_engine('mssql+pyodbc://hazuspuser:Gohazusplus_02@.\\HAZUSPLUSSRVR/' +
                                databaseName+'?driver=SQL+Server')
         writeConn = engine.connect()
         self.writeConn = writeConn
         return writeConn
-        
+
     def appendData(self, dataframe, tableName, truncate=False):
         """Appends the dataframe to Hazus SQL Server database table
 
@@ -71,7 +75,7 @@ class HazusDB():
                 tableName: str -- the name of the table to append to
                 truncate: boolean -- if true, drop the table before inserting
         new values
-                
+
             Note:  For best results ensure that your dataframe schema and 
         datatypes match the destination prior to appending.
         """
@@ -79,8 +83,9 @@ class HazusDB():
             truncateSetting = 'replace'
         else:
             truncateSetting = 'append'
-        dataframe.to_sql(name=tableName, con=self.writeConn, if_exists=truncateSetting, index=False)
-    
+        dataframe.to_sql(name=tableName, con=self.writeConn,
+                         if_exists=truncateSetting, index=False)
+
     def getDatabases(self):
         """Creates a dataframe of all databases in your Hazus installation
 
@@ -90,7 +95,7 @@ class HazusDB():
         query = 'SELECT name FROM sys.databases'
         df = pd.read_sql(query, self.conn)
         return df
-    
+
     def getTables(self, databaseName):
         """Creates a dataframe of all tables in a database
 
@@ -111,8 +116,9 @@ class HazusDB():
             Returns:
                 studyRegions: pandas dataframe
         """
-        exclusionRows = ['master', 'tempdb', 'model', 'msdb', 'syHazus', 'CDMS', 'flTmpDB']
-        self.cursor.execute('SELECT [StateID] FROM [syHazus].[dbo].[syState]')   
+        exclusionRows = ['master', 'tempdb', 'model',
+                         'msdb', 'syHazus', 'CDMS', 'flTmpDB']
+        self.cursor.execute('SELECT [StateID] FROM [syHazus].[dbo].[syState]')
         for state in self.cursor:
             exclusionRows.append(state[0])
         query = 'SELECT * FROM sys.databases'
@@ -140,11 +146,10 @@ class HazusDB():
 
             Keyword Arguments:
                 databaseName: str -- the name of the database
-            
+
             Returns:
                 df: pandas dataframe -- geometry in WKT
         """
         query = 'SELECT Shape.STAsText() as geom from [%s].[dbo].[hzboundary]' % databaseName
         df = pd.read_sql(query, self.conn)
         return df
-        

@@ -93,18 +93,24 @@ class HazusDB():
                 studyRegions: pandas dataframe
         """
         try:
-            exclusionRows = ['master', 'tempdb', 'model',
-                             'msdb', 'syHazus', 'CDMS', 'flTmpDB']
-            sql = 'SELECT [StateID] FROM [syHazus].[dbo].[syState]'
+            # exclusionRows = ['master', 'tempdb', 'model',
+            #                  'msdb', 'syHazus', 'CDMS', 'flTmpDB']
+            # sql = 'SELECT [StateID] FROM [syHazus].[dbo].[syState]'
+            # queryset = self.query(sql)
+            # states = list(queryset['StateID'])
+            # for state in states:
+            #     exclusionRows.append(state)
+            # sql = 'SELECT * FROM sys.databases'
+            # df = self.query(sql)
+            # studyRegions = df[~df['name'].isin(exclusionRows)]['name']
+            # studyRegions = studyRegions.reset_index()
+            # studyRegions = studyRegions.drop('index', axis=1)
+            # self.studyRegions = studyRegions
+            # return studyRegions
+
+            sql = """SELECT [RegionName] as studyRegion FROM [syHazus].[dbo].[syStudyRegion]"""
             queryset = self.query(sql)
-            states = list(queryset['StateID'])
-            for state in states:
-                exclusionRows.append(state)
-            sql = 'SELECT * FROM sys.databases'
-            df = self.query(sql)
-            studyRegions = df[~df['name'].isin(exclusionRows)]['name']
-            studyRegions = studyRegions.reset_index()
-            studyRegions = studyRegions.drop('index', axis=1)
+            studyRegions = list(queryset['studyRegion'])
             self.studyRegions = studyRegions
             return studyRegions
         except:

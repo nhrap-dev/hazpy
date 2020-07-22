@@ -34,8 +34,11 @@ class Report():
         self.__getBuildingDamageByOccupancy = studyRegionClass.getBuildingDamageByOccupancy
         self.__getBuildingDamageByType = studyRegionClass.getBuildingDamageByType
         self.__getEssentialFacilities = studyRegionClass.getEssentialFacilities
-        self.__getHazardDictionary = studyRegionClass.getHazardDictionary
+        self.__getHazardGeoDataFrame = studyRegionClass.getHazardGeoDataFrame
         self.__getTravelTimeToSafety = studyRegionClass.getTravelTimeToSafety
+        self.hazard = studyRegionClass.hazard
+        self.scenario = studyRegionClass.scenario
+        self.returnPeriod = studyRegionClass.returnPeriod
         self.assets = {
             'earthquake': 'https://fema-ftp-snapshot.s3.amazonaws.com/Hazus/Assets/hazard_icons/Earthquake_DHSGreen.png',
             'flood': 'https://fema-ftp-snapshot.s3.amazonaws.com/Hazus/Assets/hazard_icons/Flood_DHSGreen.png',
@@ -49,7 +52,6 @@ class Report():
         self.columnRight = ''
         self.title = title
         self.subtitle = subtitle
-        # TODO hazard icons
         self.icon = self.assets[icon]
         self.template = ''
         self.disclaimer = """The estimates of social and economic impacts contained in this report were produced using Hazus loss estimation methodology software which is based on current scientific and engineering knowledge. There are uncertainties inherent in any loss estimation
@@ -59,7 +61,6 @@ class Report():
         self._tempDirectory = 'hazpy-report-temp'
 
     def abbreviate(self, number):
-        # TODO debug
         try:
             digits = 0
             number = float(number)
@@ -456,7 +457,7 @@ class Report():
         if column == 'right':
             self.columnRight = self.columnRight + template
 
-    def addMap(self, gdf, field, title, column, countyBoundaries=True, annotate=True, legend=True, formatTicks=True, cmap='Blues'):
+    def addMap(self, gdf, field, title, column, legend=True, formatTicks=True, cmap='Blues'):
         """ Adds a map to the report
 
         Keyword Arguments: \n
@@ -482,7 +483,7 @@ class Report():
         try:
             fig = plt.figure(figsize=(3, 3), dpi=300)
             ax = fig.gca()
-
+            ax2 = fig.gca()
             try:
                 gdf.plot(column=field, cmap=cmap, ax=ax)
             except:
@@ -499,42 +500,46 @@ class Report():
                 cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
                 cb.outline.set_visible(False)
                 if formatTicks == True:
-                    cb.ax.xaxis.set_major_formatter(
-                        ticker.FuncFormatter(lambda x, p: self.addCommas(x, abbreviate=True, truncate=True)))
-                fontsize = 3
-                fig.axes[0].tick_params(labelsize=fontsize, size=fontsize)
-                fig.axes[1].tick_params(labelsize=fontsize, size=fontsize)
+                    cb.ax.xaxis.set_major_formatter(ticker.FuncFormatter(
+                        lambda x, p: self.addCommas(x, abbreviate=True, truncate=True)))
 
-            if countyBoundaries == True:
                 counties = self.getCounties()
-                counties.plot(facecolor="none",
-                              edgecolor="darkgrey", linewidth=0.2, ax=ax)
-            if annotate == True:
-                # get counties if they aren't already assigned
-                if not 'counties' in locals():
-                    counties = self.getCounties()
+                # reduce counties to those that intersect the results
+                intersect = counties.intersects(gdf.geometry)
+                counties = counties[intersect]
 
+                gdf['dissolve'] = 1
+                mask = gdf.dissolve(by='dissolve').envelope
+                mask = mask.buffer(0)
+                counties['geometry'] = counties.buffer(0)
+                counties = gpd.clip(counties, mask)
+                counties.plot(facecolor="none",
+                              edgecolor="darkgrey", linewidth=0.2, ax=ax2)
+                # counties.plot(facecolor="none", edgecolor="darkgrey", linewidth=0.2, ax=ax2)
                 annotationDf = counties.sort_values(
                     'size', ascending=False)[0:5]
-                annotationDf = annotationDf.sort_values(
-                    'size', ascending=True)
+                annotationDf = annotationDf.sort_values('size', ascending=True)
 
                 annotationDf['centroid'] = [
                     x.centroid for x in annotationDf['geometry']]
 
                 maxSize = annotationDf['size'].max()
                 topFontSize = 2.5
-                annotationDf['fontSize'] = topFontSize * \
-                    (annotationDf['size'] / annotationDf['size'].max()) + (
-                        topFontSize - ((annotationDf['size'] / annotationDf['size'].max()) * 2))
+                annotationDf['fontSize'] = topFontSize * (annotationDf['size'] / annotationDf['size'].max()) + (
+                    topFontSize - ((annotationDf['size'] / annotationDf['size'].max()) * 2))
                 for row in range(len(annotationDf)):
                     name = annotationDf.iloc[row]['name']
                     coords = annotationDf.iloc[row]['centroid']
-                    ax.annotate(s=name, xy=(float(coords.x), float(coords.y)), horizontalalignment='center', size=annotationDf.iloc[row]['fontSize'], color='white', path_effects=[
-                        pe.withStroke(linewidth=1, foreground='#404040')])
+                    ax.annotate(s=name, xy=(float(coords.x), float(coords.y)), horizontalalignment='center',
+                                size=annotationDf.iloc[row]['fontSize'], color='white', path_effects=[pe.withStroke(linewidth=1, foreground='#404040')])
 
-            ax.axis('scaled')
+            fontsize = 3
+            for idx in range(len(fig.axes)):
+                fig.axes[idx].tick_params(labelsize=fontsize, size=fontsize)
+
             ax.axis('off')
+            ax.axis('scaled')
+            ax.autoscale(enable=True, axis='both', tight=True)
             if not os.path.isdir(os.getcwd() + '/' + self._tempDirectory):
                 os.mkdir(os.getcwd() + '/' + self._tempDirectory)
             src = os.getcwd() + '/' + self._tempDirectory + '/'+str(uuid())+".png"
@@ -698,17 +703,15 @@ class Report():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    def buildPremade(self, hazard):
-        # TODO remove hazard and make it infer from study region
+    def buildPremade(self):
         """ Builds a premade report
 
-        Keyword Arguments: \n
-            hazard: str -- the hazard to create the premade report for (options: 'earthquake', 'flood', 'hurricane', 'tsunami')
         """
         try:
             # assign constants
             tableRowLimit = 7
             tonsToTruckLoadsCoef = 0.25
+            hazard = self.hazard
 
             if hazard == 'earthquake':
                 # get bulk of results
@@ -829,9 +832,8 @@ class Report():
 
                 # add hazard map
                 try:
-                    hazardDict = self._Report__getHazardDictionary()
-                    title = list(hazardDict.keys())[0]
-                    gdf = hazardDict[title]
+                    gdf = self._Report__getHazardGeoDataFrame()
+                    title = gdf.title
                     # limit the extent
                     gdf = gdf[gdf['PARAMVALUE'] > 0.1]
                     self.addMap(gdf, title=title,
@@ -929,7 +931,7 @@ class Report():
                     # rename the columns & create category column
                     buildingDamageByType.columns = ['xCol'] + yCols
                     self.addHistogram(buildingDamageByType, 'xCol', yCols,
-                                      'Building Damage By Type', 'Buildings', 'left')
+                                      'Building Damage By Type', 'Dollars (USD)', 'left')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -967,7 +969,7 @@ class Report():
                     economicLoss.geometry = economicLoss.geometry.apply(loads)
                     gdf = gpd.GeoDataFrame(economicLoss)
                     self.addMap(gdf, title='Economic Loss by Census Block',
-                                column='right', field='EconLoss', countyBoundaries=False, annotate=False, cmap='OrRd')
+                                column='right', field='EconLoss', cmap='OrRd')
 
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
@@ -975,12 +977,10 @@ class Report():
 
                 # add hazard map
                 try:
-                    hazardDict = self._Report__getHazardDictionary()
-                    # TODO add compatibility for probabilistic vs deterministic, etc
-                    title = list(hazardDict.keys())[0]
-                    gdf = hazardDict[title]
+                    gdf = self._Report__getHazardGeoDataFrame()
+                    title = gdf.title
                     self.addMap(gdf, title=title,
-                                column='right', field='PARAMVALUE', countyBoundaries=False, annotate=False, formatTicks=False, cmap='Blues')
+                                column='right', field='PARAMVALUE', formatTicks=False, cmap='Blues')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1109,10 +1109,8 @@ class Report():
 
                 # add hazard map
                 try:
-                    hazardDict = self._Report__getHazardDictionary()
-                    # TODO add compatibility for probabilistic vs deterministic, etc
-                    title = list(hazardDict.keys())[0]
-                    gdf = hazardDict[title]
+                    gdf = self._Report__getHazardGeoDataFrame()
+                    title = gdf.title
                     # limit the extent
                     gdf = gdf[gdf['PARAMVALUE'] > 0.1]
                     self.addMap(gdf, title=title,
@@ -1205,13 +1203,13 @@ class Report():
                     injuriesAndFatatilies.columns = ['Top Census Blocks']
                     injuriesAndFatatilies['Injuries Day'] = results['Injuries_DayGood']
                     injuriesAndFatatilies['Injuries Night'] = results['Injuries_NightGood']
-                    injuriesAndFatatilies['Fatalities Day'] = results['Fatalities_DayGood']
-                    injuriesAndFatatilies['Fatalities Night'] = results['Fatalities_NightGood']
+                    injuriesAndFatatilies['Fatalilties Day'] = results['Fatalities_DayGood']
+                    injuriesAndFatatilies['Fatalilties Night'] = results['Fatalities_NightGood']
                     # populate totals
                     totalDay = self.addCommas(
-                        (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalities Day']).sum(), abbreviate=True) + ' Day'
+                        (injuriesAndFatatilies['Injuries Day'] + injuriesAndFatatilies['Fatalilties Day']).sum(), abbreviate=True) + ' Day'
                     totalNight = self.addCommas(
-                        (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalities Night']).sum(), abbreviate=True) + ' Night'
+                        (injuriesAndFatatilies['Injuries Night'] + injuriesAndFatatilies['Fatalilties Night']).sum(), abbreviate=True) + ' Night'
                     total = totalDay + '/' + totalNight
                     # limit rows to the highest values
                     injuriesAndFatatilies = injuriesAndFatatilies.sort_values(
@@ -1242,10 +1240,8 @@ class Report():
 
                 # add hazard map
                 try:
-                    hazardDict = self._Report__getHazardDictionary()
-                    # TODO add compatibility for probabilistic vs deterministic, etc
-                    title = list(hazardDict.keys())[0]
-                    gdf = hazardDict[title]
+                    gdf = self._Report__getHazardGeoDataFrame()
+                    title = gdf.title
                     self.addMap(gdf, title=title,
                                 column='right', field='PARAMVALUE', formatTicks=False, cmap='Blues')
                 except:
