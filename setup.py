@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="HazPy",
+    name="hazpy",
     version="0.0.4",
     author="James Raines, Ujvala K Sharma",
     author_email="james.rainesii@fema.dhs.gov, usharma@niyamit.com, ujvalak_in@yahoo.com",
