@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.5",
     author="James Raines, Ujvala K Sharma",
     author_email="james.rainesii@fema.dhs.gov, usharma@niyamit.com, ujvalak_in@yahoo.com",
-    description="FEMA - Hazus Open-Source Library",
+    description="FEMA - hazpy Open-Source Library",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/nhrap-dev/hazpy.git",
@@ -18,5 +18,5 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 )
