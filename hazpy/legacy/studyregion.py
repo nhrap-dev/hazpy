@@ -523,16 +523,17 @@ class StudyRegion():
         try:
             constant = 1000
             # NOTE debris not available for tsunami model - placeholder below
+            # NOTE hurricane is the only model NOT in thousands of tons. It doesn't need to be multipled by the constant
             sqlDict = {
                 'earthquake': """select Tract as tract, SUM(DebrisW) * {c} as DebrisBW, SUM(DebrisS) * {c} as DebrisCS, SUM(DebrisTotal) * {c} as DebrisTotal from {s}.dbo.eqTract group by Tract""".format(s=self.name, c=constant),
                 'flood': """select CensusBlock as block, SUM(FinishTons) * {c} as DebrisTotal from {s}.dbo.flFRDebris
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = {rp}
                     group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
-                'hurricane': """select Tract as tract, SUM(BRICKANDWOOD) * {c} as DebrisBW, SUM(CONCRETEANDSTEEL) * {c} as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT
+                'hurricane': """select Tract as tract, SUM(BRICKANDWOOD) as DebrisBW, SUM(CONCRETEANDSTEEL) as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT
                     where Return_Period = {rp} 
                     and huScenarioName = '{sc}'
-                    group by Tract""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
+                    group by Tract""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': """select CensusBlock as block, SUM(FinishTons) * {c} as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name, c=constant)
             }
 
