@@ -465,34 +465,27 @@ class Report():
             field: str -- the field for the choropleth
             title: str -- section title in the report
             column: str -- which column in the report to add to (options: 'left', 'right')
-            annotate (optional): bool -- adds top 5 most populated city labels to map
             legend (optional): bool -- adds a colorbar to the map
+            formatTicks (optional): bool -- if True, it will abbreviate and add commas to tick marks
             cmap (optional): str -- the colormap used for the choropleth; default = 'Blues'
-        """
-        """
-        -- testing --
-        from hazpy import legacy
-        sr = legacy.StudyRegion('eq_test_AK')
-        sr = legacy.StudyRegion('hu_test')
-        el = sr.getEconomicLoss()
-        gdf = el.addGeometry()
-        sr.report.addMap(gdf, title='Economic Loss',
-                         column='left', field='EconLoss')
-        sr.report.save('C:/Users/jrainesi/Downloads/testReport.pdf')
         """
         try:
             fig = plt.figure(figsize=(3, 3), dpi=300)
             ax = fig.gca()
             ax2 = fig.gca()
+
+            if type(gdf) != gpd.GeoDataFrame:
+                gdf['geometry'] = gdf['geometry'].apply(str)
+                gdf['geometry'] = gdf['geometry'].apply(loads)
+                gdf = gpd.GeoDataFrame(gdf, geometry='geometry')
             try:
                 gdf.plot(column=field, cmap=cmap, ax=ax)
             except:
                 gdf['geometry'] = gdf['geometry'].apply(loads)
-                gdf = gpd.GeoDataFrame(gdf, geometry='geometry')
                 gdf.plot(column=field, cmap=cmap, ax=ax)
+
             if legend == True:
-                sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(
-                    vmin=gdf[field].min(), vmax=gdf[field].max()))
+                sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=gdf[field].min(), vmax=gdf[field].max()))
                 sm._A = []
 
                 divider = make_axes_locatable(ax)
@@ -500,8 +493,7 @@ class Report():
                 cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
                 cb.outline.set_visible(False)
                 if formatTicks == True:
-                    cb.ax.xaxis.set_major_formatter(ticker.FuncFormatter(
-                        lambda x, p: self.addCommas(x, abbreviate=True, truncate=True)))
+                    cb.ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: self.addCommas(x, abbreviate=True, truncate=True)))
 
                 counties = self.getCounties()
                 # reduce counties to those that intersect the results
@@ -513,20 +505,16 @@ class Report():
                 mask = mask.buffer(0)
                 counties['geometry'] = counties.buffer(0)
                 counties = gpd.clip(counties, mask)
-                counties.plot(facecolor="none",
-                              edgecolor="darkgrey", linewidth=0.2, ax=ax2)
+                counties.plot(facecolor="none", edgecolor="darkgrey", linewidth=0.2, ax=ax2)
                 # counties.plot(facecolor="none", edgecolor="darkgrey", linewidth=0.2, ax=ax2)
-                annotationDf = counties.sort_values(
-                    'size', ascending=False)[0:5]
+                annotationDf = counties.sort_values('size', ascending=False)[0:5]
                 annotationDf = annotationDf.sort_values('size', ascending=True)
 
-                annotationDf['centroid'] = [
-                    x.centroid for x in annotationDf['geometry']]
+                annotationDf['centroid'] = [x.centroid for x in annotationDf['geometry']]
 
                 maxSize = annotationDf['size'].max()
                 topFontSize = 2.5
-                annotationDf['fontSize'] = topFontSize * (annotationDf['size'] / annotationDf['size'].max()) + (
-                    topFontSize - ((annotationDf['size'] / annotationDf['size'].max()) * 2))
+                annotationDf['fontSize'] = topFontSize * (annotationDf['size'] / annotationDf['size'].max()) + (topFontSize - ((annotationDf['size'] / annotationDf['size'].max()) * 2))
                 for row in range(len(annotationDf)):
                     name = annotationDf.iloc[row]['name']
                     coords = annotationDf.iloc[row]['centroid']
@@ -586,14 +574,6 @@ class Report():
             column: str -- which column in the report to add to (options: 'left', 'right')
             colors (optional if len(yCols) == 3): list<str> -- the colors for each field in yCols - should be same length (default = ['#549534', '#f3de2c', '#bf2f37'])
         """
-        """ --- testing ---
-        sr = legacy.StudyRegion('hu_test')
-        df = sr.getBuildingDamageByOccupancy()
-        df['Major & Destroyed'] = df['Major'] + df['Destroyed']
-        ylabel = 'Structures Damaged'
-        xCol = 'Occupancy'
-        yCols = ['Affected', 'Minor', 'Major & Destroyed']
-        colors = ['#549534', '#f3de2c', '#bf2f37']"""
         try:
             x = [x for x in df[xCol].values] * len(yCols)
             y = []
@@ -1101,8 +1081,7 @@ class Report():
                     # convert to GeoDataFrame
                     economicLoss.geometry = economicLoss.geometry.apply(loads)
                     gdf = gpd.GeoDataFrame(economicLoss)
-                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)',
-                                column='right', field='EconLoss', cmap='OrRd')
+                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)', column='right', field='EconLoss', cmap='OrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1113,8 +1092,7 @@ class Report():
                     title = gdf.title
                     # limit the extent
                     gdf = gdf[gdf['PARAMVALUE'] > 0.1]
-                    self.addMap(gdf, title=title,
-                                column='right', field='PARAMVALUE', formatTicks=False, cmap='coolwarm')
+                    self.addMap(gdf, title=title, column='right', field='PARAMVALUE', formatTicks=False, cmap='coolwarm')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1128,12 +1106,16 @@ class Report():
                         results['DebrisCS'].sum(), abbreviate=True)
                     treeTons = self.addCommas(
                         results['DebrisTree'].sum(), abbreviate=True)
+                    eligibleTreeTons = self.addCommas(
+                        results['DebrisEligibleTree'].sum(), abbreviate=True)
                     bwTruckLoads = self.addCommas(
                         results['DebrisBW'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
                     csTruckLoads = self.addCommas(
                         results['DebrisCS'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
                     treeTruckLoads = self.addCommas(
                         results['DebrisTree'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
+                    eligibleTreeTruckLoads = self.addCommas(
+                        results['DebrisEligibleTree'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
                     # populate totals
                     totalTons = self.addCommas(
                         results['DebrisTotal'].sum(), abbreviate=True)
@@ -1141,8 +1123,8 @@ class Report():
                         results['DebrisTotal'].sum() * tonsToTruckLoadsCoef, abbreviate=True)
                     total = totalTons + ' Tons/' + totalTruckLoads + ' Truck Loads'
                     # build data dictionary
-                    data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel', 'Tree'], 'Tons': [
-                        bwTons, csTons, treeTons], 'Truck Loads': [bwTruckLoads, csTruckLoads, treeTruckLoads]}
+                    data = {'Debris Type': ['Brick, Wood, and Others', 'Contrete & Steel', 'Tree', 'Eligible Tree'], 'Tons': [
+                        bwTons, csTons, treeTons, eligibleTreeTons], 'Truck Loads': [bwTruckLoads, csTruckLoads, treeTruckLoads, eligibleTreeTruckLoads]}
                     # create DataFrame from data dictionary
                     debris = pd.DataFrame(
                         data, columns=['Debris Type', 'Tons', 'Truck Loads'])

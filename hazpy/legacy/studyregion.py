@@ -530,10 +530,14 @@ class StudyRegion():
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = {rp}
                     group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
-                'hurricane': """select Tract as tract, SUM(BRICKANDWOOD) as DebrisBW, SUM(CONCRETEANDSTEEL) as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT
-                    where Return_Period = {rp} 
-                    and huScenarioName = '{sc}'
-                    group by Tract""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
+                'hurricane': """select d.tract, d.DebrisTotal, d.DebrisBW, d.DebrisCS, d.DebrisTree, (d.DebrisTree * p.TreeCollectionFactor) as DebrisEligibleTree from
+                    (select Tract as tract, SUM(BRICKANDWOOD) as DebrisBW, SUM(CONCRETEANDSTEEL) as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT
+                        where Return_Period = {rp}
+                        and huScenarioName = '{sc}'
+                        group by Tract) d
+                        inner join (select Tract as tract, TreeCollectionFactor from {s}.dbo.huTreeParameters) p
+                        on d.tract = p.tract
+                """.format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': """select CensusBlock as block, SUM(FinishTons) * {c} as DebrisTotal from {s}.dbo.flFRDebris group by CensusBlock""".format(s=self.name, c=constant)
             }
 
@@ -747,8 +751,9 @@ class StudyRegion():
                     pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
             else:
                 gdf = hazardDict[keys[0]]
-            gdf.title = keys[0]
-            return StudyRegionDataFrame(self, gdf)
+            sdf = StudyRegionDataFrame(self, gdf)
+            sdf.title = keys[0]
+            return sdf
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
