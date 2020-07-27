@@ -747,7 +747,7 @@ class StudyRegion():
             else:
                 gdf = hazardDict[keys[0]]
             gdf.title = keys[0]
-            return gdf
+            return StudyRegionDataFrame(self, gdf)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
