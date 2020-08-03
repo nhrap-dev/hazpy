@@ -41,7 +41,7 @@ class HazusDB():
                 conn: pyodbc connection
         """
         try:
-            # list all windows SQL Server drivers
+            # list all Windows SQL Server drivers
             drivers = [
                 '{ODBC Driver 17 for SQL Server}',
                 '{ODBC Driver 13.1 for SQL Server}',
