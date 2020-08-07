@@ -12,7 +12,7 @@
     
 """
 
-__version__ = '0.0.2.dev5'
+__version__ = '0.0.2.dev4'
 __all__ = ['Tornado', 'Earthquake', 'Hurricane',
            'Tsunami', 'Flood', 'legacy', 'common', 'admin']
 
