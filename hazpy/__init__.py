@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    hazpy-dev
+    hazpy
     ~~~~~
 
     FEMA developed module for analzying risk and loss from natural hazards.
@@ -11,8 +11,7 @@
     :contributors: Ujvala K Sharma; ujvalak_in@yahoo.com,usharma@niyamit.com
     
 """
-
-__version__ = '0.0.5'
+__version__ = '0.0.1'
 __all__ = ['Tornado', 'Earthquake', 'Hurricane',
            'Tsunami', 'Flood', 'legacy', 'common', 'admin']
 

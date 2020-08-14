@@ -57,7 +57,8 @@ class HazusDB():
                 # create connection with the latest driver
                 for driver in drivers:
                     try:
-                        conn = py.connect('Driver={d};SERVER={cn}\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02'.format(d=driver, cn=computer_name))
+                        conn = py.connect('Driver={d};SERVER={cn}\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02'.format(
+                            d=driver, cn=computer_name))
                         break
                     except:
                         continue

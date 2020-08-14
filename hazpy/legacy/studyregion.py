@@ -249,10 +249,9 @@ class StudyRegion():
                 'flood': """SELECT SOccup AS Occupancy, SUM(ISNULL(TotalLoss, 0)) * {c}
                         AS TotalLoss, SUM(ISNULL(BuildingLoss, 0)) * {c} AS BldgLoss,
                         SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
-                        FROM {s}.dbo.[flFRGBSEcLossBySOccup]
+                        FROM {s}.dbo.[flFRGBSEcLossBySOccup] GROUP BY SOccup
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                         and ReturnPeriodId = {rp}
-                        GROUP BY SOccup
                         """.format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """SELECT GenBldgOrGenOcc AS Occupancy,
                         SUM(ISNULL(NonDamage, 0)) As NoDamage, SUM(ISNULL(MinDamage, 0)) AS Affected,

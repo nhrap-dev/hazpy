@@ -1,5 +1,5 @@
 {% set name = "hazpy" %}
-{% set version = "0.0.2.dev3" %}
+{% set version = "0.0.1.dev1" %}
 
 package:
   name: "{{ name|lower }}"
@@ -20,6 +20,7 @@ requirements:
     - python
     - rasterio
     - geopandas
+    - pyodbc
     - sqlalchemy
     - urllib3
     - xhtml2pdf
@@ -47,7 +48,7 @@ test:
     - hazpy.tsunami.modules
 
 about:
-  home: "https://github.com/nhrap-dev/hazpy.git"
+  home: "https://github.com/nhrap-hazus/hazpy.git"
   license: "GNU General Public v3 or later (GPLv3+)"
   license_family: GPL3
   license_file: 
