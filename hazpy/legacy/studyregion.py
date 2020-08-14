@@ -163,10 +163,17 @@ class StudyRegion():
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = {rp}
                  group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
-                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
-                    where ReturnPeriod = {rp} 
-                    and huScenarioName = '{sc}'
-                    group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
+                 # NOTE: huSummaryLoss will result in double economic loss. It stores results for occupancy and structure type
+                # 'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
+                #     where ReturnPeriod = {rp} 
+                #     and huScenarioName = '{sc}'
+                #     group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
+                'hurricane': """
+                    select TRACT as tract, SUM(ISNULL(Total, 0)) * {c} as EconLoss from {s}.dbo.[hv_huResultsOccAllLossT]
+                        where Return_Period = {rp} 
+                        and huScenarioName = '{sc}'
+                        group by Tract
+                """.format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
                 'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name, c=constant)
             }
 
