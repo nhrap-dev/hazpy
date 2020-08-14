@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    hazus
+    hazpy
     ~~~~~
 
     FEMA developed module for analzying risk and loss from natural hazards.

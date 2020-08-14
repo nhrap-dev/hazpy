@@ -45,9 +45,26 @@ class HazusDB():
             Returns:
                 conn: pyodbc connection
         """
-        comp_name = os.environ['COMPUTERNAME']
-        conn = py.connect('Driver=ODBC Driver 11 for SQL Server;SERVER=' +
-                          comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
+        # list all Windows SQL Server drivers
+        drivers = [
+            '{ODBC Driver 17 for SQL Server}',
+            '{ODBC Driver 13.1 for SQL Server}',
+            '{ODBC Driver 13 for SQL Server}',
+            '{ODBC Driver 11 for SQL Server} ',
+            '{SQL Server Native Client 11.0}',
+            '{SQL Server Native Client 10.0}',
+            '{SQL Native Client}',
+            '{SQL Server}'
+        ]
+        computer_name = os.environ['COMPUTERNAME']
+        # create connection with the latest driver
+        for driver in drivers:
+            try:
+                conn = py.connect('Driver={d};SERVER={cn}\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02'.format(
+                    d=driver, cn=computer_name))
+                break
+            except:
+                continue
         self.conn = conn
         return conn
 

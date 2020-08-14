@@ -1,5 +1,5 @@
 {% set name = "hazpy" %}
-{% set version = "0.0.2.dev4" %}
+{% set version = "0.0.1" %}
 
 package:
   name: "{{ name|lower }}"
@@ -18,66 +18,15 @@ requirements:
     - python
   run:
     - python
-    - affine
-    - asn1crypto
-    - attrs
-    - bcrypt
-    - certifi
-    - cffi
-    - chardet
-    - Click
-    - click-plugins
-    - cligj
-    - cryptography
-    - cycler
-    - descartes
-    - Fiona
-    - GDAL
-    - geopandas
-    - idna
-    - jenkspy
-    - kiwisolver
-    - mapclassify
-    - matplotlib
-    - mkl_fft
-    - mkl_random
-    - mkl-service
-    - munch
-    - numpy
-    - olefile
-    - palettable
-    - pandas
-    - paramiko
-    - patsy
-    - Pillow
-    - psycopg2
-    - pycparser
-    - PyNaCl
-    - pyodbc
-    - pyOpenSSL
-    - pyparsing
-    - pyproj
-    - pysal
-    - PySocks
-    - python-dateutil
-    - pytz
     - rasterio
-    - reportlab
-    - requests
-    - Rtree
-    - scipy
-    - seaborn
-    - Shapely
-    - six
-    - snuggs
-    - SQLAlchemy
-    - statsmodels
-    - tornado
+    - geopandas
+    - pyodbc
+    - sqlalchemy
     - urllib3
-    - utm
-    - win_inet_pton
-    - wincertstore
     - xhtml2pdf
+    - utm
+    - matplotlib
+    - seaborn
 
 test:
   imports:
@@ -99,7 +48,7 @@ test:
     - hazpy.tsunami.modules
 
 about:
-  home: "https://github.com/nhrap-dev/hazpy.git"
+  home: "https://github.com/nhrap-hazus/hazpy.git"
   license: "GNU General Public v3 or later (GPLv3+)"
   license_family: GPL3
   license_file: 
