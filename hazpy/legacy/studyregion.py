@@ -776,8 +776,9 @@ class StudyRegion():
                                     WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
                                         WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'hurricane':  # hurricane can only have one active scenario
-                sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
-                    s=self.name)
+                # NOTE: CurrentScenario from huTemplateScenario can be wrong if you import a study region with the same scenario name
+                # sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(s=self.name)
+                sql = """select distinct(huScenarioName) as scenarios from {s}.dbo.[huSummaryLoss]""".format(s=self.name)
             if self.hazard == 'flood':  # flood can have many scenarios
                 sql = """SELECT [StudyCaseName] as scenarios FROM {s}.[dbo].[flStudyCase]""".format(
                     s=self.name)
