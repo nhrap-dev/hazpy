@@ -687,6 +687,8 @@ class Report():
         """ Builds a premade report
 
         """
+
+
         try:
             # assign constants
             tableRowLimit = 7

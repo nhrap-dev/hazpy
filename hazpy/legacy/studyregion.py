@@ -23,6 +23,7 @@ from .studyregiondataframe import StudyRegionDataFrame
 from .report import Report
 
 
+
 class StudyRegion():
     """ Creates a study region object using an existing study region in the local Hazus database
 
@@ -163,10 +164,17 @@ class StudyRegion():
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = {rp}
                  group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
-                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
-                    where ReturnPeriod = {rp} 
-                    and huScenarioName = '{sc}'
-                    group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
+                 # NOTE: huSummaryLoss will result in double economic loss. It stores results for occupancy and structure type
+                # 'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
+                #     where ReturnPeriod = {rp} 
+                #     and huScenarioName = '{sc}'
+                #     group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
+                'hurricane': """
+                    select TRACT as tract, SUM(ISNULL(Total, 0)) * {c} as EconLoss from {s}.dbo.[hv_huResultsOccAllLossT]
+                        where Return_Period = {rp} 
+                        and huScenarioName = '{sc}'
+                        group by Tract
+                """.format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
                 'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name, c=constant)
             }
 
@@ -776,8 +784,9 @@ class StudyRegion():
                                     WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
                                         WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'hurricane':  # hurricane can only have one active scenario
-                sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
-                    s=self.name)
+                # NOTE: CurrentScenario from huTemplateScenario can be wrong if you import a study region with the same scenario name
+                # sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(s=self.name)
+                sql = """select distinct(huScenarioName) as scenarios from {s}.dbo.[huSummaryLoss]""".format(s=self.name)
             if self.hazard == 'flood':  # flood can have many scenarios
                 sql = """SELECT [StudyCaseName] as scenarios FROM {s}.[dbo].[flStudyCase]""".format(
                     s=self.name)
