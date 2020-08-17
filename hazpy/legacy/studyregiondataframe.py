@@ -69,13 +69,23 @@ class StudyRegionDataFrame(pd.DataFrame):
                 df: pandas dataframe -- a dataframe of the census geometry and fips codes
         """
         try:
+            temp_df = self.copy()
+            if not 'county' in temp_df.columns:
+                if not 'tract' in temp_df.columns:
+                    sql = """SELECT TOP (1000) [CensusBlock] as block ,[Tract] as tract FROM {s}.[dbo].[hzCensusBlock]""".format(s=self.studyRegion)
+                    update_df = self.query(sql)
+                    temp_df = pd.merge(update_df, temp_df, on="block")
+                sql = """SELECT TOP (1000) [Tract] as tract ,[CountyFips] as county FROM {s}.[dbo].[hzTract]""".format(s=self.studyRegion)
+                update_df = self.query(sql)
+                temp_df = pd.merge(update_df, temp_df, on="tract")
 
             sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS geometry FROM {s}.dbo.hzCounty""".format(
                 s=self.studyRegion)
 
-            df = self.query(sql)
-            newDf = pd.merge(df, self, on="county")
-            return StudyRegionDataFrame(self, newDf)
+            breakpoint()
+            update_df = self.query(sql)
+            temp_df = pd.merge(df, temp_df, on="county")
+            return StudyRegionDataFrame(self, temp_df)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
