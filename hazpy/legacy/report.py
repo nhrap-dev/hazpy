@@ -325,9 +325,8 @@ class Report():
                             padding-left: 5px;
                         }
                         .results_table_img {
-                            width: auto;
-                            height: 400pt;
-                            max-height: 400pt;
+                            width: 512pt;
+                            height: auto;
                         }
                         .disclaimer {
                             color: #c3c3c3;
@@ -471,9 +470,7 @@ class Report():
             cmap (optional): str -- the colormap used for the choropleth; default = 'Blues'
         """
         try:
-            f_width = 3
-            f_height = 3
-            fig = plt.figure(figsize=(f_width, f_height), dpi=300)
+            fig = plt.figure(figsize=(3, 3), dpi=300)
             ax = fig.gca()
             ax2 = fig.gca()
 
@@ -521,7 +518,8 @@ class Report():
                 for row in range(len(annotationDf)):
                     name = annotationDf.iloc[row]['name']
                     coords = annotationDf.iloc[row]['centroid']
-                    ax.annotate(text=name, xy=(float(coords.x), float(coords.y)), horizontalalignment='center', size=annotationDf.iloc[row]['fontSize'], color='white', path_effects=[pe.withStroke(linewidth=1, foreground='#404040')])
+                    ax.annotate(s=name, xy=(float(coords.x), float(coords.y)), horizontalalignment='center',
+                                size=annotationDf.iloc[row]['fontSize'], color='white', path_effects=[pe.withStroke(linewidth=1, foreground='#404040')])
 
             fontsize = 3
             for idx in range(len(fig.axes)):
@@ -529,18 +527,13 @@ class Report():
 
             ax.axis('off')
             ax.axis('scaled')
+            ax.autoscale(enable=True, axis='both', tight=True)
             if not os.path.isdir(os.getcwd() + '/' + self._tempDirectory):
                 os.mkdir(os.getcwd() + '/' + self._tempDirectory)
             src = os.getcwd() + '/' + self._tempDirectory + '/'+str(uuid())+".png"
             fig.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
-            axExtent = ax.get_window_extent()
-            if axExtent.width <= (axExtent.height / 2):
-                ax.autoscale(enable=True, axis='x', tight=False)
-                ax.margins(f_width, f_height)
-                fig.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
             fig.clf()
             plt.clf()
-
 
             template = """
                 <div class="result_container">
@@ -635,20 +628,30 @@ class Report():
             plt.clf()
             print("Unexpected error:", sys.exc_info()[0])
             raise
+        """
 
+        data = {'apple': 10, 'orange': 15, 'lemon': 5, 'lime': 20}
+        names = list(data.keys())
+        values = list(data.values())
 
-    def save(self, path, deleteTemp=True, openFile=True, build=False):
+        fig, axs = plt.subplots(1, 3, figsize=(9, 3), sharey=True)
+        axs[0].bar(names, values)
+        fig.suptitle('Categorical Plotting')
+        fig.show()
+        """
+
+    def save(self, path, deleteTemp=True, openFile=True, premade=None):
         """Creates a PDF of the report
 
         Keyword Arguments: \n
             path: str -- the output directory and file name (example: 'C://output_directory/filename.pdf')
             deleteTemp (optional): bool -- delete temp files used to create the report (default: True)
             openFile (optional): bool -- open the PDF after saving (default: True)
-            build (optional): bool -- create a premade report (default: False)
+            premade (optional): str -- create a premade report (default: None; options: 'earthquake', 'flood', 'hurricane', 'tsunami')
         """
         try:
-            if build:
-                self.build()
+            if premade != None:
+                self.buildPremade(premade)
 
             # open output file for writing (truncated binary)
             self.updateTemplate()
@@ -666,28 +669,24 @@ class Report():
                 os.startfile(path)
             if deleteTemp:
                 shutil.rmtree(os.getcwd() + '/' + self._tempDirectory)
-            self.clear()
+            self.columnLeft = ''
+            self.columnRight = ''
 
             # return False on success and True on errors
             return pisa_status.err
         except:
-            if build:
-                self.clear()
+            if premade != None:
+                self.columnLeft = ''
+                self.columnRight = ''
             if deleteTemp:
                 shutil.rmtree(os.getcwd() + '/' + self._tempDirectory)
             print("Unexpected error:", sys.exc_info()[0])
             raise
-    
-    def clear(self):
-        self.columnLeft = ''
-        self.columnRight = ''
 
-
-    def build(self):
+    def buildPremade(self):
         """ Builds a premade report
 
         """
-
         try:
             # assign constants
             tableRowLimit = 7
@@ -698,15 +697,7 @@ class Report():
                 # get bulk of results
                 try:
                     results = self._Report__getResults()
-                    # results = results.addGeometry()
-                    results = results.addCounties()
-                    results_values = results.groupby(by=['county']).sum()
-                    results = results.groupby(by=['county']).first()
-                    for column in results_values.columns:
-                        results[column] = results_values[column]
-                    results = results.drop('tract', axis=1)
-                    results = results.reset_index()
-
+                    results = results.addGeometry()
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -730,9 +721,9 @@ class Report():
 
                 # add economic loss
                 try:
-                    economicLoss = results[['name', 'EconLoss']]
+                    economicLoss = results[['tract', 'EconLoss']]
                     economicLoss.columns = [
-                        'Top Counties', 'Economic Loss']
+                        'Top Census Tracts', 'Economic Loss']
                     # populate total
                     total = self.addCommas(
                         economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
@@ -750,8 +741,8 @@ class Report():
 
                 # add injuries and fatatilies
                 try:
-                    injuriesAndFatatilies = results[['name']]
-                    injuriesAndFatatilies.columns = ['Top Counties']
+                    injuriesAndFatatilies = results[['tract']]
+                    injuriesAndFatatilies.columns = ['Top Census Tracts']
                     injuriesAndFatatilies['Injuries Day'] = results['Injury_DayLevel1'] + \
                         results['Injury_DayLevel2'] + \
                         results['Injury_DayLevel3']
@@ -771,7 +762,7 @@ class Report():
                         'Injuries Day', ascending=False)[0:tableRowLimit]
                     # format values
                     for column in injuriesAndFatatilies:
-                        if column != 'Top Counties':
+                        if column != 'Top Census Tracts':
                             injuriesAndFatatilies[column] = [self.addCommas(
                                 x, abbreviate=True) for x in injuriesAndFatatilies[column]]
 
@@ -784,9 +775,9 @@ class Report():
                 # add displaced households and shelter needs
                 try:
                     displacedAndShelter = results[[
-                        'name', 'DisplacedHouseholds', 'ShelterNeeds']]
+                        'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
                     displacedAndShelter.columns = [
-                        'Top Counties', 'Displaced Households', 'People Needing Shelter']
+                        'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
                     # populate totals
                     totalDisplaced = self.addCommas(
                         displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
@@ -798,7 +789,7 @@ class Report():
                         'Displaced Households', ascending=False)[0:tableRowLimit]
                     # format values
                     for column in displacedAndShelter:
-                        if column != 'Top Counties':
+                        if column != 'Top Census Tracts':
                             displacedAndShelter[column] = [self.addCommas(
                                 x, abbreviate=True) for x in displacedAndShelter[column]]
                     self.addTable(
@@ -809,11 +800,11 @@ class Report():
 
                 # add economic loss map
                 try:
-                    economicLoss = results[['name', 'EconLoss', 'geometry']]
+                    economicLoss = results[['tract', 'EconLoss', 'geometry']]
                     # convert to GeoDataFrame
                     economicLoss.geometry = economicLoss.geometry.apply(loads)
                     gdf = gpd.GeoDataFrame(economicLoss)
-                    self.addMap(gdf, title='Economic Loss by County (USD)',
+                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)',
                                 column='right', field='EconLoss', cmap='OrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
@@ -863,14 +854,7 @@ class Report():
                 # get bulk of results
                 try:
                     results = self._Report__getResults()
-                    # results = results.addGeometry()
-                    results = results.addCounties()
-                    results_values = results.groupby(by=['county']).sum()
-                    results = results.groupby(by=['county']).first()
-                    for column in results_values.columns:
-                        results[column] = results_values[column]
-                    results = results.drop('block', axis=1)
-                    results = results.reset_index()
+                    results = results.addGeometry()
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -897,9 +881,9 @@ class Report():
 
                 # add economic loss
                 try:
-                    economicLoss = results[['name', 'EconLoss']]
+                    economicLoss = results[['block', 'EconLoss']]
                     economicLoss.columns = [
-                        'Top Counties', 'Economic Loss']
+                        'Top Census Blocks', 'Economic Loss']
                     # populate total
                     total = self.addCommas(
                         economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
@@ -935,9 +919,9 @@ class Report():
                 # add displaced households and shelter needs
                 try:
                     displacedAndShelter = results[[
-                        'name', 'DisplacedHouseholds', 'ShelterNeeds']]
+                        'block', 'DisplacedHouseholds', 'ShelterNeeds']]
                     displacedAndShelter.columns = [
-                        'Top Counties', 'Displaced Households', 'People Needing Shelter']
+                        'Top Census Blocks', 'Displaced Households', 'People Needing Shelter']
                     # populate totals
                     totalDisplaced = self.addCommas(
                         displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
@@ -949,7 +933,7 @@ class Report():
                         'Displaced Households', ascending=False)[0:tableRowLimit]
                     # format values
                     for column in displacedAndShelter:
-                        if column != 'Top Counties':
+                        if column != 'Top Census Blocks':
                             displacedAndShelter[column] = [self.addCommas(
                                 x, abbreviate=True) for x in displacedAndShelter[column]]
                     self.addTable(
@@ -960,11 +944,11 @@ class Report():
 
                 # add economic loss map
                 try:
-                    economicLoss = results[['name', 'EconLoss', 'geometry']]
+                    economicLoss = results[['block', 'EconLoss', 'geometry']]
                     # convert to GeoDataFrame
                     economicLoss.geometry = economicLoss.geometry.apply(loads)
                     gdf = gpd.GeoDataFrame(economicLoss)
-                    self.addMap(gdf, title='Economic Loss by County',
+                    self.addMap(gdf, title='Economic Loss by Census Block',
                                 column='right', field='EconLoss', cmap='OrRd')
 
                 except:
@@ -1007,14 +991,7 @@ class Report():
                 # get bulk of results
                 try:
                     results = self._Report__getResults()
-                    # results = results.addGeometry()
-                    results = results.addCounties()
-                    results_values = results.groupby(by=['county']).sum()
-                    results = results.groupby(by=['county']).first()
-                    for column in results_values.columns:
-                        results[column] = results_values[column]
-                    results = results.drop('tract', axis=1)
-                    results = results.reset_index()
+                    results = results.addGeometry()
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1038,9 +1015,9 @@ class Report():
 
                 # add economic loss
                 try:
-                    economicLoss = results[['name', 'EconLoss']]
+                    economicLoss = results[['tract', 'EconLoss']]
                     economicLoss.columns = [
-                        'Top Counties', 'Economic Loss']
+                        'Top Census Tracts', 'Economic Loss']
                     # populate total
                     total = self.addCommas(
                         economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
@@ -1075,9 +1052,9 @@ class Report():
                 # add displaced households and shelter needs
                 try:
                     displacedAndShelter = results[[
-                        'name', 'DisplacedHouseholds', 'ShelterNeeds']]
+                        'tract', 'DisplacedHouseholds', 'ShelterNeeds']]
                     displacedAndShelter.columns = [
-                        'Top Counties', 'Displaced Households', 'People Needing Shelter']
+                        'Top Census Tracts', 'Displaced Households', 'People Needing Shelter']
                     # populate totals
                     totalDisplaced = self.addCommas(
                         displacedAndShelter['Displaced Households'].sum(), abbreviate=True)
@@ -1089,7 +1066,7 @@ class Report():
                         'Displaced Households', ascending=False)[0:tableRowLimit]
                     # format values
                     for column in displacedAndShelter:
-                        if column != 'Top Counties':
+                        if column != 'Top Census Tracts':
                             displacedAndShelter[column] = [self.addCommas(
                                 x, abbreviate=True) for x in displacedAndShelter[column]]
                     self.addTable(
@@ -1100,11 +1077,11 @@ class Report():
 
                 # add economic loss map
                 try:
-                    economicLoss = results[['name', 'EconLoss', 'geometry']]
+                    economicLoss = results[['tract', 'EconLoss', 'geometry']]
                     # convert to GeoDataFrame
                     economicLoss.geometry = economicLoss.geometry.apply(loads)
                     gdf = gpd.GeoDataFrame(economicLoss)
-                    self.addMap(gdf, title='Economic Loss by County (USD)', column='right', field='EconLoss', cmap='OrRd')
+                    self.addMap(gdf, title='Economic Loss by Census Tract (USD)', column='right', field='EconLoss', cmap='OrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1160,14 +1137,7 @@ class Report():
                 # get bulk of results
                 try:
                     results = self._Report__getResults()
-                    # results = results.addGeometry()
-                    results = results.addCounties()
-                    results_values = results.groupby(by=['county']).sum()
-                    results = results.groupby(by=['county']).first()
-                    for column in results_values.columns:
-                        results[column] = results_values[column]
-                    results = results.drop('block', axis=1)
-                    results = results.reset_index()
+                    results = results.addGeometry()
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
@@ -1191,9 +1161,9 @@ class Report():
 
                 # add economic loss
                 try:
-                    economicLoss = results[['name', 'EconLoss']]
+                    economicLoss = results[['block', 'EconLoss']]
                     economicLoss.columns = [
-                        'Top Counties', 'Economic Loss']
+                        'Top Census Blocks', 'Economic Loss']
                     # populate total
                     total = self.addCommas(
                         economicLoss['Economic Loss'].sum(), truncate=True, abbreviate=True)
@@ -1211,8 +1181,8 @@ class Report():
 
                 # add injuries and fatatilies
                 try:
-                    injuriesAndFatatilies = results[['name']]
-                    injuriesAndFatatilies.columns = ['Top Counties']
+                    injuriesAndFatatilies = results[['block']]
+                    injuriesAndFatatilies.columns = ['Top Census Blocks']
                     injuriesAndFatatilies['Injuries Day'] = results['Injuries_DayGood']
                     injuriesAndFatatilies['Injuries Night'] = results['Injuries_NightGood']
                     injuriesAndFatatilies['Fatalilties Day'] = results['Fatalities_DayGood']
@@ -1228,7 +1198,7 @@ class Report():
                         'Injuries Day', ascending=False)[0:tableRowLimit]
                     # format values
                     for column in injuriesAndFatatilies:
-                        if column != 'Top Counties':
+                        if column != 'Top Census Blocks':
                             injuriesAndFatatilies[column] = [self.addCommas(
                                 x, abbreviate=True) for x in injuriesAndFatatilies[column]]
 
@@ -1240,11 +1210,11 @@ class Report():
 
                 # add economic loss map
                 try:
-                    economicLoss = results[['name', 'EconLoss', 'geometry']]
+                    economicLoss = results[['block', 'EconLoss', 'geometry']]
                     # convert to GeoDataFrame
                     economicLoss.geometry = economicLoss.geometry.apply(loads)
                     gdf = gpd.GeoDataFrame(economicLoss)
-                    self.addMap(gdf, title='Economic Loss by Counties (USD)',
+                    self.addMap(gdf, title='Economic Loss by Census Block (USD)',
                                 column='right', field='EconLoss', cmap='OrRd')
                 except:
                     print("Unexpected error:", sys.exc_info()[0])
