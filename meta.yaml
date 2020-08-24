@@ -1,5 +1,6 @@
+  
 {% set name = "hazpy" %}
-{% set version = "0.0.1" %}
+{% set version = "0.0.1.dev2" %}
 
 package:
   name: "{{ name|lower }}"
@@ -18,15 +19,66 @@ requirements:
     - python
   run:
     - python
-    - rasterio
+    - affine
+    - asn1crypto
+    - attrs
+    - bcrypt
+    - certifi
+    - cffi
+    - chardet
+    - Click
+    - click-plugins
+    - cligj
+    - cryptography
+    - cycler
+    - descartes
+    - Fiona
+    - GDAL
     - geopandas
-    - pyodbc
-    - sqlalchemy
-    - urllib3
-    - xhtml2pdf
-    - utm
+    - idna
+    - jenkspy
+    - kiwisolver
+    - mapclassify
     - matplotlib
+    - mkl_fft
+    - mkl_random
+    - mkl-service
+    - munch
+    - numpy
+    - olefile
+    - palettable
+    - pandas
+    - paramiko
+    - patsy
+    - Pillow
+    - psycopg2
+    - pycparser
+    - PyNaCl
+    - pyodbc
+    - pyOpenSSL
+    - pyparsing
+    - pyproj
+    - pysal
+    - PySocks
+    - python-dateutil
+    - pytz
+    - rasterio
+    - reportlab
+    - requests
+    - Rtree
+    - scipy
     - seaborn
+    - Shapely
+    - six
+    - snuggs
+    - SQLAlchemy
+    - statsmodels
+    - tornado
+    - urllib3
+    - utm
+    - win_inet_pton
+    - wincertstore
+    - xhtml2pdf
 
 test:
   imports:
