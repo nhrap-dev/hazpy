@@ -163,10 +163,17 @@ class StudyRegion():
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = {rp}
                  group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
-                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
-                    where ReturnPeriod = {rp} 
-                    and huScenarioName = '{sc}'
-                    group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
+                 # NOTE: huSummaryLoss will result in double economic loss. It stores results for occupancy and structure type
+                # 'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
+                #     where ReturnPeriod = {rp} 
+                #     and huScenarioName = '{sc}'
+                #     group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
+                'hurricane': """
+                    select TRACT as tract, SUM(ISNULL(Total, 0)) * {c} as EconLoss from {s}.dbo.[hv_huResultsOccAllLossT]
+                        where Return_Period = {rp} 
+                        and huScenarioName = '{sc}'
+                        group by Tract
+                """.format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
                 'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name, c=constant)
             }
 
@@ -213,10 +220,10 @@ class StudyRegion():
                         and huScenarioName = '{sc}'
                         GROUP BY Tract""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': """select CBFips as block,
-                        count(case when BldgLoss/(ValStruct+ValCont) <=0.05 then 1 end) as Affected,
-                        count(case when BldgLoss/(ValStruct+ValCont) > 0.05 and BldgLoss/(ValStruct+ValCont) <=0.3 then 1 end) as Minor,
-                        count(case when BldgLoss/(ValStruct+ValCont) > 0.3 and BldgLoss/(ValStruct+ValCont) <=0.5 then 1 end) as Major,
-                        count(case when BldgLoss/(ValStruct+ValCont) >0.5 then 1 end) as Destroyed
+                        ISNULL(count(case when BldgLoss/NULLIF(ValStruct+ValCont, 0) <=0.05 then 1 end), 0) as Affected,
+                        ISNULL(count(case when BldgLoss/NULLIF(ValStruct+ValCont, 0) > 0.05 and BldgLoss/(ValStruct+ValCont) <=0.3 then 1 end), 0) as Minor,
+                        ISNULL(count(case when BldgLoss/NULLIF(ValStruct+ValCont, 0) > 0.3 and BldgLoss/(ValStruct+ValCont) <=0.5 then 1 end), 0) as Major,
+                        ISNULL(count(case when BldgLoss/NULLIF(ValStruct+ValCont, 0) >0.5 then 1 end), 0) as Destroyed
                         from (select NsiID, ValStruct, ValCont  from {s}.dbo.tsHazNsiGbs) haz
                             left join (select NsiID, CBFips from {s}.dbo.tsNsiGbs) gbs
                             on haz.NsiID = gbs.NsiID
@@ -249,9 +256,10 @@ class StudyRegion():
                 'flood': """SELECT SOccup AS Occupancy, SUM(ISNULL(TotalLoss, 0)) * {c}
                         AS TotalLoss, SUM(ISNULL(BuildingLoss, 0)) * {c} AS BldgLoss,
                         SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
-                        FROM {s}.dbo.[flFRGBSEcLossBySOccup] GROUP BY SOccup
+                        FROM {s}.dbo.[flFRGBSEcLossBySOccup]
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                         and ReturnPeriodId = {rp}
+                        GROUP BY SOccup
                         """.format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """SELECT GenBldgOrGenOcc AS Occupancy,
                         SUM(ISNULL(NonDamage, 0)) As NoDamage, SUM(ISNULL(MinDamage, 0)) AS Affected,
@@ -588,8 +596,16 @@ class StudyRegion():
             hazard = self.hazard
             hazardDict = {}
             if hazard == 'earthquake':
-                path = 'C:/HazusData/Regions/'+self.name+'/shape/pga.shp'
-                gdf = gpd.read_file(path)
+                try:
+                    path = 'C:/HazusData/Regions/'+self.name+'/shape/pga.shp'
+                    gdf = gpd.read_file(path)
+                except:
+                    sql = """SELECT a.tract, PARAMVALUE, geometry FROM
+                        (SELECT [Tract] as tract ,[PGA] as PARAMVALUE FROM {s}.[dbo].[eqTract]) a
+                        inner join
+                        (SELECT Tract as tract, Shape.STAsText() AS geometry FROM {s}.dbo.hzTract) b
+                        on a.tract = b.tract""".format(s=self.name)
+                    gdf = self.query(sql)
                 hazardDict['Peak Ground Acceleration (g)'] = gdf
             if hazard == 'flood':
                 # this is a list instead of a dictionary, because some of the 'name' properties are the same
