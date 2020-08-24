@@ -775,9 +775,11 @@ class StudyRegion():
                                     FROM [syHazus].[dbo].[eqRegionScenario]
                                     WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
                                         WHERE RegionName = '{s}'))""".format(s=self.name)
+            # NOTE: huTemplateScenario can contain problematic suffixes if syHazus contains duplicate named scenarios; defaulting to distinct query
             if self.hazard == 'hurricane':  # hurricane can only have one active scenario
-                sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
-                    s=self.name)
+                # sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
+                #     s=self.name)
+                sql = """select distinct(huScenarioName) as scenarios from {s}.dbo.[huSummaryLoss]""".format(s=self.name)
             if self.hazard == 'flood':  # flood can have many scenarios
                 sql = """SELECT [StudyCaseName] as scenarios FROM {s}.[dbo].[flStudyCase]""".format(
                     s=self.name)
