@@ -23,7 +23,6 @@ from .studyregiondataframe import StudyRegionDataFrame
 from .report import Report
 
 
-
 class StudyRegion():
     """ Creates a study region object using an existing study region in the local Hazus database
 
@@ -59,7 +58,6 @@ class StudyRegion():
                                 'Reinitialize the StudyRegion class and specify the hazard as one of the following: ' + str(hazards))
         self.setScenario()
         self.setReturnPeriod()
-        self.report = Report(self, self.name, '', self.hazard)
 
     def setScenario(self, scenario=None):
         # validate scenario
@@ -165,17 +163,10 @@ class StudyRegion():
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = {rp}
                  group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
-                 # NOTE: huSummaryLoss will result in double economic loss. It stores results for occupancy and structure type
-                # 'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
-                #     where ReturnPeriod = {rp} 
-                #     and huScenarioName = '{sc}'
-                #     group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
-                'hurricane': """
-                    select TRACT as tract, SUM(ISNULL(Total, 0)) * {c} as EconLoss from {s}.dbo.[hv_huResultsOccAllLossT]
-                        where Return_Period = {rp} 
-                        and huScenarioName = '{sc}'
-                        group by Tract
-                """.format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
+                'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
+                    where ReturnPeriod = {rp} 
+                    and huScenarioName = '{sc}'
+                    group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
                 'tsunami': """select CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.tsuvResDelKTotB group by CensusBlock""".format(s=self.name, c=constant)
             }
 
@@ -222,10 +213,10 @@ class StudyRegion():
                         and huScenarioName = '{sc}'
                         GROUP BY Tract""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': """select CBFips as block,
-                        ISNULL(count(case when BldgLoss/ NULLIF(ValStruct+ValCont, 0) <=0.05 then 1 end), 0) as Affected,
-                        ISNULL(count(case when BldgLoss/ NULLIF(ValStruct+ValCont, 0) > 0.05 and BldgLoss/(ValStruct+ValCont) <=0.3 then 1 end), 0) as Minor,
-                        ISNULL(count(case when BldgLoss/ NULLIF(ValStruct+ValCont, 0) > 0.3 and BldgLoss/(ValStruct+ValCont) <=0.5 then 1 end), 0) as Major,
-                        ISNULL(count(case when BldgLoss/ NULLIF(ValStruct+ValCont, 0) >0.5 then 1 end), 0) as Destroyed
+                        count(case when BldgLoss/(ValStruct+ValCont) <=0.05 then 1 end) as Affected,
+                        count(case when BldgLoss/(ValStruct+ValCont) > 0.05 and BldgLoss/(ValStruct+ValCont) <=0.3 then 1 end) as Minor,
+                        count(case when BldgLoss/(ValStruct+ValCont) > 0.3 and BldgLoss/(ValStruct+ValCont) <=0.5 then 1 end) as Major,
+                        count(case when BldgLoss/(ValStruct+ValCont) >0.5 then 1 end) as Destroyed
                         from (select NsiID, ValStruct, ValCont  from {s}.dbo.tsHazNsiGbs) haz
                             left join (select NsiID, CBFips from {s}.dbo.tsNsiGbs) gbs
                             on haz.NsiID = gbs.NsiID
@@ -597,15 +588,8 @@ class StudyRegion():
             hazard = self.hazard
             hazardDict = {}
             if hazard == 'earthquake':
-                try:
-                    path = 'C:/HazusData/Regions/'+self.name+'/shape/pga.shp'
-                    gdf = gpd.read_file(path)
-                except:
-                    sql = """SELECT Shape.STAsText() as geometry ,[ParamValue] as PARAMVALUE FROM {s}.[dbo].[eqSrPGA]""".format(s=self.name)
-                    df = self.query(sql)
-                    df.geometry = df.geometry.apply(str)
-                    df.geometry = df.geometry.apply(loads)
-                    gdf = gpd.GeoDataFrame(df, geometry='geometry')
+                path = 'C:/HazusData/Regions/'+self.name+'/shape/pga.shp'
+                gdf = gpd.read_file(path)
                 hazardDict['Peak Ground Acceleration (g)'] = gdf
             if hazard == 'flood':
                 # this is a list instead of a dictionary, because some of the 'name' properties are the same
@@ -685,38 +669,38 @@ class StudyRegion():
                         # Historic
                         'Historic Wind Speeds (mph)':
                         {'returnPeriod': '0',
-                            'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario)},
+                            'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust > 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario)},
                         # Deterministic
                         'Wind Speeds (mph)':
-                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE huScenarioName = '{sc}'".format(
-                            s=self.name, sc=self.scenario)},
+                        {'returnPeriod': '0', 'path': 'SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust > 0'.format(
+                            s=self.name)},
                         # Probabilistic 10-year
                         'Wind Speeds (mph) - 10-year':
-                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed]'.format(
+                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr > 0'.format(
                             s=self.name)},
                         # Probabilistic 20-year
                         'Wind Speeds (mph) - 20-year':
-                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed]'.format(
+                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr > 0'.format(
                             s=self.name)},
                         # Probabilistic 50-year
                         'Wind Speeds (mph) - 50-year':
-                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed]'.format(
+                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr > 0'.format(
                             s=self.name)},
                         # Probabilistic 100-year
                         'Wind Speeds (mph) - 100-year':
-                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed]'.format(
+                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr > 0'.format(
                             s=self.name)},
                         # Probabilistic 200-year
                         'Wind Speeds (mph) - 200-year':
-                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed]'.format(
+                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr > 0'.format(
                             s=self.name)},
                         # Probabilistic 500-year
                         'Wind Speeds (mph) - 500-year':
-                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed]'.format(
+                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr > 0'.format(
                             s=self.name)},
                         # Probabilistic 1000-year
                         'Wind Speeds (mph) - 1000-year':
-                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed]'.format(
+                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr > 0'.format(
                             s=self.name)}
                     }
                     for key in hazardPathDict.keys():
@@ -792,9 +776,8 @@ class StudyRegion():
                                     WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
                                         WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'hurricane':  # hurricane can only have one active scenario
-                # NOTE: CurrentScenario from huTemplateScenario can be wrong if you import a study region with the same scenario name
-                # sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(s=self.name)
-                sql = """select distinct(huScenarioName) as scenarios from {s}.dbo.[huSummaryLoss]""".format(s=self.name)
+                sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
+                    s=self.name)
             if self.hazard == 'flood':  # flood can have many scenarios
                 sql = """SELECT [StudyCaseName] as scenarios FROM {s}.[dbo].[flStudyCase]""".format(
                     s=self.name)
@@ -1041,16 +1024,15 @@ class StudyRegion():
             dataFrameList = [economicLoss, buildingDamage, fatalities,
                              injuries, shelterNeeds, displacedHouseholds, debris, demographics]
 
-            how = 'outer'
             if 'block' in economicLoss.columns:
                 dfMerged = reduce(lambda left, right: pd.merge(
-                    left, right, on=['block'], how=how), dataFrameList)
+                    left, right, on=['block'], how='outer'), dataFrameList)
             elif 'tract' in economicLoss.columns:
                 dfMerged = reduce(lambda left, right: pd.merge(
-                    left, right, on=['tract'], how=how), dataFrameList)
+                    left, right, on=['tract'], how='outer'), dataFrameList)
             elif 'county' in economicLoss.columns:
                 dfMerged = reduce(lambda left, right: pd.merge(
-                    left, right, on=['county'], how=how), dataFrameList)
+                    left, right, on=['county'], how='outer'), dataFrameList)
 
             df = dfMerged[dfMerged['EconLoss'].notnull()]
             # Find the columns where each value is null

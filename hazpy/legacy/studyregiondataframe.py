@@ -33,17 +33,13 @@ class StudyRegionDataFrame(pd.DataFrame):
                 df: pandas dataframe -- a dataframe of the census geometry and fips codes
         """
         try:
-            temp_df = self.copy()
-            if not 'tract' in temp_df.columns:
-                sql = """SELECT [CensusBlock] as block ,[Tract] as tract FROM {s}.[dbo].[hzCensusBlock]""".format(s=self.studyRegion)
-                update_df = self.query(sql)
-                temp_df = pd.merge(update_df, temp_df, on="block")
 
             sql = """SELECT Tract as tract, Shape.STAsText() AS geometry FROM {s}.dbo.hzTract""".format(
                 s=self.studyRegion)
-            update_df = self.query(sql)
-            temp_df = pd.merge(update_df, temp_df, on="tract")
-            return StudyRegionDataFrame(self, temp_df)
+
+            df = self.query(sql)
+            newDf = pd.merge(df, self, on="tract")
+            return StudyRegionDataFrame(self, newDf)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
@@ -74,22 +70,12 @@ class StudyRegionDataFrame(pd.DataFrame):
         """
         try:
 
-            temp_df = self.copy()
-            if not 'county' in temp_df.columns:
-                if not 'tract' in temp_df.columns:
-                    sql = """SELECT [CensusBlock] as block ,[Tract] as tract FROM {s}.[dbo].[hzCensusBlock]""".format(s=self.studyRegion)
-                    update_df = self.query(sql)
-                    temp_df = pd.merge(update_df, temp_df, on="block")
-                sql = """SELECT [Tract] as tract ,[CountyFips] as county FROM {s}.[dbo].[hzTract]""".format(s=self.studyRegion)
-                update_df = self.query(sql)
-                temp_df = pd.merge(update_df, temp_df, on="tract")
-
             sql = """SELECT CountyFips as county, CountyName as name, Shape.STAsText() AS geometry FROM {s}.dbo.hzCounty""".format(
                 s=self.studyRegion)
 
-            update_df = self.query(sql)
-            temp_df = pd.merge(update_df, temp_df, on="county")
-            return StudyRegionDataFrame(self, temp_df)
+            df = self.query(sql)
+            newDf = pd.merge(df, self, on="county")
+            return StudyRegionDataFrame(self, newDf)
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
