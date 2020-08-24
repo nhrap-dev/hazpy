@@ -688,8 +688,8 @@ class StudyRegion():
                             'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust > 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario)},
                         # Deterministic
                         'Wind Speeds (mph)':
-                        {'returnPeriod': '0', 'path': 'SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust > 0'.format(
-                            s=self.name)},
+                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust > 0 AND huScenarioName = '{sc}'".format(
+                            s=self.name, sc=self.scenario)},
                         # Probabilistic 10-year
                         'Wind Speeds (mph) - 10-year':
                         {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr > 0'.format(
