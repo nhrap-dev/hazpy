@@ -594,6 +594,9 @@ class StudyRegion():
         """
         try:
             hazard = self.hazard
+            # the operator controls if hazard data includes zero values ('>=' does include; '>' doesn't include)
+            # TODO operator is only part of hurricane - build operator into other hazards
+            operator = '>='
             hazardDict = {}
             if hazard == 'earthquake':
                 try:
@@ -685,39 +688,39 @@ class StudyRegion():
                         # Historic
                         'Historic Wind Speeds (mph)':
                         {'returnPeriod': '0',
-                            'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust > 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario)},
+                            'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario, o=operator)},
                         # Deterministic
                         'Wind Speeds (mph)':
-                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust > 0 AND huScenarioName = '{sc}'".format(
-                            s=self.name, sc=self.scenario)},
+                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
+                            s=self.name, sc=self.scenario, o=operator)},
                         # Probabilistic 10-year
                         'Wind Speeds (mph) - 10-year':
-                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr > 0'.format(
-                            s=self.name)},
+                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr {o} 0'.format(
+                            s=self.name, o=operator)},
                         # Probabilistic 20-year
                         'Wind Speeds (mph) - 20-year':
-                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr > 0'.format(
-                            s=self.name)},
+                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr {o} 0'.format(
+                            s=self.name, o=operator)},
                         # Probabilistic 50-year
                         'Wind Speeds (mph) - 50-year':
-                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr > 0'.format(
-                            s=self.name)},
+                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr {o} 0'.format(
+                            s=self.name, o=operator)},
                         # Probabilistic 100-year
                         'Wind Speeds (mph) - 100-year':
-                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr > 0'.format(
-                            s=self.name)},
+                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr {o} 0'.format(
+                            s=self.name, o=operator)},
                         # Probabilistic 200-year
                         'Wind Speeds (mph) - 200-year':
-                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr > 0'.format(
-                            s=self.name)},
+                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr {o} 0'.format(
+                            s=self.name, o=operator)},
                         # Probabilistic 500-year
                         'Wind Speeds (mph) - 500-year':
-                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr > 0'.format(
-                            s=self.name)},
+                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr {o} 0'.format(
+                            s=self.name, o=operator)},
                         # Probabilistic 1000-year
                         'Wind Speeds (mph) - 1000-year':
-                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr > 0'.format(
-                            s=self.name)}
+                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr {o} 0'.format(
+                            s=self.name, o=operator)}
                     }
                     for key in hazardPathDict.keys():
                         if hazardPathDict[key]['returnPeriod'] == self.returnPeriod:
