@@ -717,7 +717,7 @@ class Report():
             # return False on success and True on errors
             return pisa_status.err
         except:
-            if premade != None:
+            if build != None:
                 self.columnLeft = ''
                 self.columnRight = ''
             if deleteTemp:
