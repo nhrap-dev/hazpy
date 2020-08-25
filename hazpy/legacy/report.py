@@ -564,45 +564,13 @@ class Report():
             fig.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
             # fig has to be saved twice to properly calculate the window extent
             axExtent = ax.get_window_extent()
+            # is the graphic is too tall, this resizes it
             if axExtent.width <= (axExtent.height / 1.5):
                 ax.autoscale(enable=True, axis='x', tight=False)
                 ax.margins(f_width, f_height + 3)
                 fig.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
             fig.clf()
             plt.clf()
-
-            """
-            exit()
-            activate hazus_env
-            python
-            from hazpy.legacy import StudyRegion
-            sr = StudyRegion('hu_laura_tx')
-            sr.report.save('C:/Users/jrainesi/Downloads/test/test.pdf', build=True)
-            #--test--
-            fig.clf()
-            plt.clf()
-            fig = plt.figure(figsize=(f_width, f_height), dpi=300)
-            ax = fig.gca()
-            ax2 = fig.gca()
-            gdf.plot(column=field, cmap=cmap, ax=ax)
-            sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=gdf[field].min(), vmax=gdf[field].max()))
-            sm._A = []
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("top", size="10%", pad="20%")
-            cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
-            cb.outline.set_visible(False)
-            counties.plot(facecolor="none", edgecolor="darkgrey", linewidth=0.2, ax=ax2)
-            ax.axis('off')
-            ax.axis('scaled')
-            src = os.getcwd() + '/' + self._tempDirectory + '/'+str(uuid())+".png"
-            fig.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
-            # fig has to be saved twice to properly calculate the window extent
-            axExtent = ax.get_window_extent()
-            if axExtent.width <= (axExtent.height / 2):
-                ax.autoscale(enable=True, axis='x', tight=False)
-                ax.margins(f_width, f_height)
-                fig.savefig(src, pad_inches=0, bbox_inches='tight', dpi=600)
-            """
 
             template = """
                 <div class="result_container">
