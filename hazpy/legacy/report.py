@@ -497,16 +497,6 @@ class Report():
             formatTicks (optional): bool -- if True, it will abbreviate and add commas to tick marks
             cmap (optional): str -- the colormap used for the choropleth; default = 'Blues'
         """
-        """
-        activate hazus_env
-
-        exit()
-        python
-        from hazpy.legacy import StudyRegion
-        sr = StudyRegion('ara_laura')
-        ef = sr.getEssentialFacilities()
-        sr.report.save('C:/Users/jrainesi/Downloads/test/test.pdf', build=True)
-        """
         try:
             f_width = 3
             f_height = 3
@@ -1065,7 +1055,7 @@ class Report():
                     results = results.drop('tract', axis=1)
                     results = results.reset_index()
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1083,7 +1073,7 @@ class Report():
                     self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
                                       'Building Damage By Occupancy', 'Buildings', 'left')
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1104,7 +1094,7 @@ class Report():
                     self.addTable(
                         economicLoss, 'Total Economic Loss', total, 'left')
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1119,7 +1109,7 @@ class Report():
                     self.addHistogram(essentialFacilities, 'xCol', yCols,
                                       'Damaged Essential Facilities', 'Total Facilities', 'left')
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1146,7 +1136,7 @@ class Report():
                     self.addTable(
                         displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1158,7 +1148,7 @@ class Report():
                     gdf = gpd.GeoDataFrame(economicLoss)
                     self.addMap(gdf, title='Economic Loss by County (USD)', column='right', field='EconLoss', cmap='OrRd')
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1170,7 +1160,7 @@ class Report():
                     gdf = gdf[gdf['PARAMVALUE'] > 0.1]
                     self.addMap(gdf, title=title, column='right', field='PARAMVALUE', formatTicks=False, cmap='coolwarm')
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1207,7 +1197,7 @@ class Report():
                         data, columns=['Debris Type', 'Tons', 'Truck Loads'])
                     self.addTable(debris, 'Debris', total, 'right')
                 except:
-                    breakpoint()
+                    
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
