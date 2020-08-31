@@ -921,14 +921,15 @@ class StudyRegion():
                         # limit fields to containFields
                         hzcolumns = [x for x in hzcolumns if any(
                             f in x for f in containFields)]
-                        tempColumns = [x.replace(x, '['+x+']')
-                                       for x in hzcolumns]
+                        tempColumns = [x.replace(x, '['+x+']') for x in hzcolumns]
                         tempColumns = [x.replace('[Shape]', 'Shape.STAsText() as geometry')
                                        for x in tempColumns]
                         tempColumns = [x.replace('[Statea]', '[Statea] as State')
                                        for x in tempColumns]
                         tempColumns.insert(0, '['+idColumn+'] as FacilityId')
                         hazusColumns = ', '.join(tempColumns)
+
+
 
                         # build queryset columns
                         # replace hzcolumns
@@ -940,6 +941,11 @@ class StudyRegion():
                         srcolumns = [x.replace(idColumn, 'FacilityId')
                                      for x in srcolumns]
                         srcolumns.insert(0, 'FacilityType')
+                        # rename minor/moderate/severe/complete
+                        srcolumns = [x.replace('MINOR', 'MINOR as Affected') for x in srcolumns]
+                        srcolumns = [x.replace('MODERATE', 'MODERATE as Minor') for x in srcolumns]
+                        srcolumns = [x.replace('SEVERE', 'SEVERE as Major') for x in srcolumns]
+                        srcolumns = [x.replace('COMPLETE', 'COMPLETE as Destroyed') for x in srcolumns]
                         hzcolumnsFinal = ', '.join(
                             ['hz.' + x for x in hzcolumns])
                         srcolumnsFinal = ', '.join(
