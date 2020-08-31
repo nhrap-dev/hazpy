@@ -497,6 +497,16 @@ class Report():
             formatTicks (optional): bool -- if True, it will abbreviate and add commas to tick marks
             cmap (optional): str -- the colormap used for the choropleth; default = 'Blues'
         """
+        """
+        activate hazus_env
+
+        exit()
+        python
+        from hazpy.legacy import StudyRegion
+        sr = StudyRegion('ara_laura')
+        ef = sr.getEssentialFacilities()
+        sr.report.save('C:/Users/jrainesi/Downloads/test/test.pdf', build=True)
+        """
         try:
             f_width = 3
             f_height = 3
@@ -508,11 +518,12 @@ class Report():
                 gdf['geometry'] = gdf['geometry'].apply(str)
                 gdf['geometry'] = gdf['geometry'].apply(loads)
                 gdf = gpd.GeoDataFrame(gdf, geometry='geometry')
+            scheme = 'FisherJenks'
             try:
-                gdf.plot(column=field, cmap=cmap, ax=ax)
+                gdf.plot(column=field, cmap=cmap, ax=ax, edgecolor="darkgrey", linewidth=0.2, scheme=scheme)
             except:
                 gdf['geometry'] = gdf['geometry'].apply(loads)
-                gdf.plot(column=field, cmap=cmap, ax=ax)
+                gdf.plot(column=field, cmap=cmap, ax=ax, edgecolor="darkgrey", linewidth=0.2, scheme=scheme)
 
             if legend == True:
                 sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=gdf[field].min(), vmax=gdf[field].max()))
@@ -526,6 +537,7 @@ class Report():
                     cb.ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, p: self.addCommas(x, abbreviate=True, truncate=True)))
 
                 counties = self.getCounties()
+                """
                 # reduce counties to those that intersect the results
                 intersect = counties.intersects(gdf.geometry)
                 counties = counties[intersect]
@@ -536,17 +548,17 @@ class Report():
                 counties['geometry'] = counties.buffer(0)
                 counties = gpd.clip(counties, mask)
                 counties.plot(facecolor="none", edgecolor="darkgrey", linewidth=0.2, ax=ax2)
-                # counties.plot(facecolor="none", edgecolor="darkgrey", linewidth=0.2, ax=ax2)
-                annotationDf = counties.sort_values('size', ascending=False)[0:5]
-                annotationDf = annotationDf.sort_values('size', ascending=True)
+                """
+                annotationDf = counties.sort_values('size', ascending=False)[0:5] 
+                annotationDf = annotationDf.sort_values('size', ascending=True) 
 
                 annotationDf['centroid'] = [x.centroid for x in annotationDf['geometry']]
 
-                maxSize = annotationDf['size'].max()
+                maxSize = annotationDf['size'].max() 
                 topFontSize = 2.5
                 annotationDf['fontSize'] = topFontSize * (annotationDf['size'] / annotationDf['size'].max()) + (topFontSize - ((annotationDf['size'] / annotationDf['size'].max()) * 2))
                 for row in range(len(annotationDf)):
-                    name = annotationDf.iloc[row]['name']
+                    name = annotationDf.iloc[row]['name'] 
                     coords = annotationDf.iloc[row]['centroid']
                     ax.annotate(text=name, xy=(float(coords.x), float(coords.y)), horizontalalignment='center',
                                 size=annotationDf.iloc[row]['fontSize'], color='white', path_effects=[pe.withStroke(linewidth=1, foreground='#404040')])
@@ -557,7 +569,6 @@ class Report():
 
             ax.axis('off')
             ax.axis('scaled')
-            # ax.autoscale(enable=True, axis='both', tight=True)
             if not os.path.isdir(os.getcwd() + '/' + self._tempDirectory):
                 os.mkdir(os.getcwd() + '/' + self._tempDirectory)
             src = os.getcwd() + '/' + self._tempDirectory + '/'+str(uuid())+".png"
@@ -611,6 +622,7 @@ class Report():
             column: str -- which column in the report to add to (options: 'left', 'right')
             colors (optional if len(yCols) == 3): list<str> -- the colors for each field in yCols - should be same length (default = ['#549534', '#f3de2c', '#bf2f37'])
         """
+        # TODO label values under 1 - they currently just appear as 0 even when totaled over 1
         try:
             x = [x for x in df[xCol].values] * len(yCols)
             y = []
@@ -1053,6 +1065,7 @@ class Report():
                     results = results.drop('tract', axis=1)
                     results = results.reset_index()
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1070,6 +1083,7 @@ class Report():
                     self.addHistogram(buildingDamageByOccupancy, 'xCol', yCols,
                                       'Building Damage By Occupancy', 'Buildings', 'left')
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1090,6 +1104,7 @@ class Report():
                     self.addTable(
                         economicLoss, 'Total Economic Loss', total, 'left')
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1097,15 +1112,14 @@ class Report():
                 try:
                     essentialFacilities = self._Report__getEssentialFacilities()
                     # create category column
-                    essentialFacilities.columns = [
-                        x.replace('FacilityType', 'xCol') for x in essentialFacilities.columns]
-                    essentialFacilities['Major & Destroyed'] = essentialFacilities['Major'] + \
-                        essentialFacilities['Destroyed']
+                    essentialFacilities.columns = [x.replace('FacilityType', 'xCol') for x in essentialFacilities.columns]
+                    essentialFacilities['Major & Destroyed'] = essentialFacilities['Major'] + essentialFacilities['Destroyed']
                     # list columns to group for each category
                     yCols = ['Affected', 'Minor', 'Major & Destroyed']
                     self.addHistogram(essentialFacilities, 'xCol', yCols,
                                       'Damaged Essential Facilities', 'Total Facilities', 'left')
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1132,6 +1146,7 @@ class Report():
                     self.addTable(
                         displacedAndShelter, 'Displaced Households and Sort-Term Shelter Needs', total, 'left')
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1143,6 +1158,7 @@ class Report():
                     gdf = gpd.GeoDataFrame(economicLoss)
                     self.addMap(gdf, title='Economic Loss by County (USD)', column='right', field='EconLoss', cmap='OrRd')
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1154,6 +1170,7 @@ class Report():
                     gdf = gdf[gdf['PARAMVALUE'] > 0.1]
                     self.addMap(gdf, title=title, column='right', field='PARAMVALUE', formatTicks=False, cmap='coolwarm')
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
@@ -1190,6 +1207,7 @@ class Report():
                         data, columns=['Debris Type', 'Tons', 'Truck Loads'])
                     self.addTable(debris, 'Debris', total, 'right')
                 except:
+                    breakpoint()
                     print("Unexpected error:", sys.exc_info()[0])
                     pass
 
