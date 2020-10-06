@@ -177,16 +177,16 @@ class StudyRegion():
                 'earthquake': """select Tract as tract, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.[eqTractEconLoss] group by [eqTractEconLoss].Tract""".format(s=self.name, c=constant),
                 'flood': """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0))* {c} as EconLoss from {s}.dbo.flFRGBSEcLossByTotal
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                    and ReturnPeriodId = {rp}
+                    and ReturnPeriodId = '{rp}'
                  group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
                  # NOTE: huSummaryLoss will result in double economic loss. It stores results for occupancy and structure type
                 # 'hurricane': """select TRACT as tract, SUM(ISNULL(TotLoss, 0)) * {c} as EconLoss from {s}.dbo.[huSummaryLoss] 
-                #     where ReturnPeriod = {rp} 
+                #     where ReturnPeriod = '{rp} '
                 #     and huScenarioName = '{sc}'
                 #     group by Tract""".format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
                 'hurricane': """
                     select TRACT as tract, SUM(ISNULL(Total, 0)) * {c} as EconLoss from {s}.dbo.[hv_huResultsOccAllLossT]
-                        where Return_Period = {rp} 
+                        where Return_Period = '{rp}' 
                         and huScenarioName = '{sc}'
                         group by Tract
                 """.format(s=self.name, c=constant, rp=self.returnPeriod, sc=self.scenario),
@@ -224,7 +224,7 @@ class StudyRegion():
                         SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
                         FROM [{s}].dbo.[flFRGBSEcLossBySOccup] 
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                        and ReturnPeriodId = {rp}
+                        and ReturnPeriodId = '{rp}'
                         GROUP BY CensusBlock
                         """.format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """SELECT Tract AS tract,
@@ -232,7 +232,7 @@ class StudyRegion():
                         SUM(ISNULL(ModDamage, 0)) AS Minor, SUM(ISNULL(SevDamage, 0)) AS Major,
                         SUM(ISNULL(ComDamage, 0)) AS Destroyed FROM [{s}].dbo.[huSummaryDamage]
                         WHERE GenBldgOrGenOcc IN('COM', 'AGR', 'GOV', 'EDU', 'REL','RES', 'IND')
-                        and ReturnPeriod = {rp} 
+                        and ReturnPeriod = '{rp}' 
                         and huScenarioName = '{sc}'
                         GROUP BY Tract""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': """select CBFips as block,
@@ -274,7 +274,7 @@ class StudyRegion():
                         SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
                         FROM {s}.dbo.[flFRGBSEcLossBySOccup]
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                        and ReturnPeriodId = {rp}
+                        and ReturnPeriodId = '{rp}'
                         GROUP BY SOccup
                         """.format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """SELECT GenBldgOrGenOcc AS Occupancy,
@@ -282,7 +282,7 @@ class StudyRegion():
                         SUM(ISNULL(ModDamage, 0)) AS Minor, SUM(ISNULL(SevDamage, 0)) AS Major,
                         SUM(ISNULL(ComDamage, 0)) AS Destroyed FROM {s}.dbo.[huSummaryDamage]
                         WHERE GenBldgOrGenOcc IN('COM', 'AGR', 'GOV', 'EDU', 'REL','RES', 'IND')
-                        and ReturnPeriod = {rp} 
+                        and ReturnPeriod = '{rp}'
                         and huScenarioName = '{sc}'
                         GROUP BY GenBldgOrGenOcc""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': """SELECT LEFT({s}.dbo.tsHazNsiGbs.NsiID, 3) As Occupancy,
@@ -333,14 +333,14 @@ class StudyRegion():
                         SUM(ISNULL(BuildingLoss, 0)) * {c} AS BldgLoss, SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
                         FROM {s}.dbo.[flFRGBSEcLossByGBldgType] 
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                        and ReturnPeriodId = {rp}
+                        and ReturnPeriodId = '{rp}'
                         GROUP BY BldgType""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """SELECT GenBldgOrGenOcc AS Occupancy,
                         SUM(ISNULL(NonDamage, 0)) As NoDamage, SUM(ISNULL(MinDamage, 0)) AS Affected,
                         SUM(ISNULL(ModDamage, 0)) AS Minor, SUM(ISNULL(SevDamage, 0)) AS Major,
                         SUM(ISNULL(ComDamage, 0)) AS Destroyed FROM {s}.dbo.[huSummaryDamage]
                         WHERE GenBldgOrGenOcc IN('CONCRETE', 'MASONRY', 'STEEL', 'WOOD', 'MH')
-                        and ReturnPeriod = {rp} 
+                        and ReturnPeriod = '{rp}' 
                         and huScenarioName = '{sc}'
                         GROUP BY GenBldgOrGenOcc""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': """SELECT eqBldgType AS BldgType, [Description],
@@ -489,10 +489,10 @@ class StudyRegion():
                 'earthquake': """select Tract as tract, SUM(DisplacedHouseholds) as DisplacedHouseholds from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, SUM(DisplacedPop) as DisplacedHouseholds from {s}.dbo.flFRShelter
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                    and ReturnPeriodId = {rp}
+                    and ReturnPeriodId = '{rp}'
                     group by CensusBlock""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """select TRACT as tract, SUM(DISPLACEDHOUSEHOLDS) as DisplacedHouseholds from {s}.dbo.huShelterResultsT
-                        where Return_Period = {rp} 
+                        where Return_Period = '{rp}' 
                         and huScenarioName = '{sc}'
                     group by Tract""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'tsunami': None
@@ -520,10 +520,10 @@ class StudyRegion():
                 'earthquake': """select Tract as tract, SUM(ShortTermShelter) as ShelterNeeds from {s}.dbo.eqTract group by Tract""".format(s=self.name),
                 'flood': """select CensusBlock as block, SUM(ShortTermNeeds) as ShelterNeeds from {s}.dbo.flFRShelter
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                    and ReturnPeriodId = {rp}
+                    and ReturnPeriodId = '{rp}'
                     group by CensusBlock""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """select TRACT as tract, SUM(SHORTTERMSHELTERNEEDS) as ShelterNeeds from {s}.dbo.huShelterResultsT
-                    where Return_Period = {rp} 
+                    where Return_Period = '{rp}' 
                     and huScenarioName = '{sc}'
                      group by Tract
                         """.format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
@@ -552,11 +552,11 @@ class StudyRegion():
                 'earthquake': """select Tract as tract, SUM(DebrisW) * {c} as DebrisBW, SUM(DebrisS) * {c} as DebrisCS, SUM(DebrisTotal) * {c} as DebrisTotal from {s}.dbo.eqTract group by Tract""".format(s=self.name, c=constant),
                 'flood': """select CensusBlock as block, SUM(FinishTons) * {c} as DebrisTotal from {s}.dbo.flFRDebris
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                    and ReturnPeriodId = {rp}
+                    and ReturnPeriodId = '{rp}'
                     group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
                 'hurricane': """select d.tract, d.DebrisTotal, d.DebrisBW, d.DebrisCS, d.DebrisTree, (d.DebrisTree * p.TreeCollectionFactor) as DebrisEligibleTree from
                     (select Tract as tract, SUM(BRICKANDWOOD) as DebrisBW, SUM(CONCRETEANDSTEEL) as DebrisCS, SUM(Tree) as DebrisTree, SUM(BRICKANDWOOD + CONCRETEANDSTEEL + Tree) as DebrisTotal from {s}.dbo.huDebrisResultsT
-                        where Return_Period = {rp}
+                        where Return_Period = '{rp}'
                         and huScenarioName = '{sc}'
                         group by Tract) d
                         inner join (select Tract as tract, TreeCollectionFactor from {s}.dbo.huTreeParameters) p
@@ -849,7 +849,7 @@ class StudyRegion():
                 sql = """SELECT DISTINCT [Return_Period] as returnPeriod FROM {s}.[dbo].[hv_huQsrEconLoss]""".format(
                     s=self.name)
             if self.hazard == 'flood':  # TODO test if this works for UDF
-                sql = """SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM {s}.[dbo].[flAnAreaWeighted]""".format(
+                sql = """SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM {s}.[dbo].[flFRGBSEcLossByTotal]""".format(
                     s=self.name)
             if self.hazard == 'tsunami':  # selecting 0 due to no return period existing in database
                 sql = """SELECT '0' as returnPeriod FROM {s}.[dbo].[tsScenario]""".format(
@@ -857,14 +857,28 @@ class StudyRegion():
 
             queryset = self.query(sql)
             returnPeriods = list(queryset['returnPeriod'])
+            # assign as 0 if no return periods exists
             if len(returnPeriods) == 0:
                 returnPeriods.append('0')
-            try:
-                returnPeriods = [int(x) for x in returnPeriods]
-                returnPeriods.sort()
-                returnPeriods = [str(x) for x in returnPeriods]
-            except:
-                print('unable to sort return periods')
+            # Sort return periods
+            if len(returnPeriods) > 0:
+                try:
+                    # strip excess spaces
+                    returnPeriods = [x.strip() for x in returnPeriods]
+                    intPeriods = []
+                    strPeriods = []
+                    for period in returnPeriods:
+                        try:
+                            intPeriods.append(int(period))
+                        except:
+                            strPeriods.append(period)
+                    if len(intPeriods) > 0:
+                        intPeriods.sort()
+                        intPeriods = [str(x) for x in intPeriods]
+                    returnPeriods = intPeriods + strPeriods
+                except:
+                    print('unable to sort return periods')
+
             return returnPeriods
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -977,8 +991,8 @@ class StudyRegion():
                         # build where clause
                         whereClauseDict = {
                             'earthquake': """where EconLoss > 0""",
-                            'flood': """where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}') and ReturnPeriodId = {rp}""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
-                            'hurricane': """where Return_Period = {rp} and huScenarioName = '{sc}'""".format(sc=self.scenario, rp=self.returnPeriod),
+                            'flood': """where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}') and ReturnPeriodId = '{rp}'""".format(s=self.name, sc=self.scenario, rp=self.returnPeriod),
+                            'hurricane': """where Return_Period = '{rp}' and huScenarioName = '{sc}'""".format(sc=self.scenario, rp=self.returnPeriod),
                             'tsunami': """where EconLoss > 0"""
                         }
                         whereClause = whereClauseDict[self.hazard]
