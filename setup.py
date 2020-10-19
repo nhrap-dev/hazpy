@@ -11,7 +11,7 @@ setuptools.setup(
     description="FEMA - hazpy Open-Source Library",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/nhrap-hazus/hazpy.git",
+    url="https://github.com/nhrap-dev/hazpy.git",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
