@@ -4,7 +4,7 @@
 
     FEMA developed module for analzying risk and loss from floods.
 
-    :copyright: © 2019 by FEMA's Natural Hazards and Risk Assesment Program.
+    :copyright: © 2019 by FEMA's Natural Hazards and Risk Assessment Program.
     :license: cc, see LICENSE for more details.
     :author(FAST Merge): Ujvala K Sharma (UKS) 
     :date:   1/14/2020
@@ -941,7 +941,7 @@ class UDF():
                             """
                             except Exception as e:
                                 print(e)
-                                logger.info("Expection occured")
+                                logger.info("Expection occurred")
                                 writer.writerow(row)
                                 #counter += 1
                                 counter2 += 1
