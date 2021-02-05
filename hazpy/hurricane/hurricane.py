@@ -1,8 +1,8 @@
 from ..common.classes import Base
-from .modules import DirectEconomicLoss
-from .modules import DirectPhysicalDamage
-from .modules import DirectSocialLoss
-from .modules import InducedPhysicalDamage
+from .direct_economic_loss import DirectEconomicLoss
+from .direct_physical_damage import DirectPhysicalDamage
+from .direct_social_loss import DirectSocialLoss
+from .induced_physical_damage import InducedPhysicalDamage
 
 
 class Hurricane(Base):
