@@ -11,6 +11,6 @@
 """
 
 __version__ = '0.0.1'
-__all__ = ['classes']
+__all__ = ['Tornado']
 
-from .classes import *
+from .tornado import Tornado

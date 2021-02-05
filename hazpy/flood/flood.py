@@ -1,15 +1,14 @@
 from ..common.classes import Base
-from .modules import Agriculture
-from .modules import DirectSocialLosses
-from .modules import EssentialFacilities
-from .modules import GeneralBuildingStock
-from .modules import IndirectEconomicLoss
-from .modules import TransportationSystems
-from .modules import UDF
-from .modules import UtilitySystems
-from .modules import Vehicles
-from .modules import WhatIf
-from .modules import UDF
+from .agriculture import Agriculture
+from .direct_social_losses import DirectSocialLosses
+from .essential_facilities import EssentialFacilities
+from .general_building_stock import GeneralBuildingStock
+from .indirect_economic_loss import IndirectEconomicLoss
+from .transportation_systems import TransportationSystems
+from .udf import UDF
+from .utility_systems import UtilitySystems
+from .vehicles import Vehicles
+from .what_if import WhatIf
 
 
 class Flood(Base):
@@ -24,8 +23,7 @@ class Flood(Base):
         super().__init__()
 
         self.analysis = Analysis()
-        self.UDF = UDF.UDF()
-        self.test = 'coconut'
+        self.UDF = UDF()
 
 
 class Analysis():

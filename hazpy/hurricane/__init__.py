@@ -11,6 +11,6 @@
 """
 
 __version__ = '0.0.1'
-__all__ = ['classes']
+__all__ = ['Hurricane']
 
-from .classes import *
+from .hurricane import Hurricane

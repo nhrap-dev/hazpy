@@ -11,6 +11,6 @@
 """
 
 __version__ = '0.0.1'
-__all__ = ['classes']
+__all__ = ['Earthquake']
 
-from .classes import Earthquake
+from .earthquake import Earthquake
