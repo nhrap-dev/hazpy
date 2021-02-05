@@ -1,6 +1,6 @@
   
 {% set name = "hazpy" %}
-{% set version = "0.0.1.dev6" %}
+{% set version = "0.0.1" %}
 
 package:
   name: "{{ name|lower }}"
@@ -100,7 +100,7 @@ test:
     - hazpy.tsunami.modules
 
 about:
-  home: "https://github.com/nhrap-hazus/hazpy.git"
+  home: "https://github.com/nhrap-dev/hazpy.git"
   license: "GNU General Public v3 or later (GPLv3+)"
   license_family: GPL3
   license_file: 

@@ -1,14 +1,14 @@
 from ..common.classes import Base
-from .modules import AEBM
-from .modules import DirectSocialLosses
-from .modules import EssentialFacilities
-from .modules import GeneralBuildings
-from .modules import IndirectEconomicLoss
-from .modules import InducedPhysicalDamage
-from .modules import MilitaryInstallation
-from .modules import TransportationSystems
-from .modules import UserDefinedStructures
-from .modules import UtilitySystems
+from .aebm import AEBM
+from .direct_social_losses import DirectSocialLosses
+from .essential_facilities import EssentialFacilities
+from .general_buildings import GeneralBuildings
+from .indirect_economic_loss import IndirectEconomicLoss
+from .induced_physical_damage import InducedPhysicalDamage
+from .military_installation import MilitaryInstallation
+from .transportation_systems import TransportationSystems
+from .udf import UDF
+from .utility_systems import UtilitySystems
 
 
 class Earthquake(Base):
@@ -31,5 +31,5 @@ class Analysis():
         self.inducedPhysicalDamage = InducedPhysicalDamage()
         self.militaryInstallation = MilitaryInstallation()
         self.transportationSystems = TransportationSystems()
-        self.userDefinedStructures = UserDefinedStructures()
+        self.UDF = UDF()
         self.utilitySystems = UtilitySystems()

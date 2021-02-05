@@ -41,56 +41,57 @@ class StudyRegion():
         self.report = Report(self, self.name, '', self.hazard)
 
     def setHazard(self, hazard=None):
-        # validate hazard
-        hazards = self.getHazardsAnalyzed()
+        try:
+            # validate hazard
+            hazards = self.getHazardsAnalyzed()
 
-        if hazard == None and len(hazards) == 1:
-            self.hazard = hazards[0]
-        elif hazard == None and len(hazards) > 1:
-            self.hazard = hazards[0]
-            print(str(hazards) + ' hazard options available. Defaulting to ' +
-                  hazards[0] + '. To change the hazard, use: StudyRegion.setHazard("YOUR_HAZARD_HERE")')
-        else:
-            if hazard in hazards:
+            if hazard == None and len(hazards) == 1:
+                self.hazard = hazards[0]
+            elif hazard == None and len(hazards) > 1:
+                self.hazard = hazards[0]
+                print(str(hazards) + ' hazard options available. Defaulting to ' +
+                    hazards[0] + '. To change the hazard, use: StudyRegion.setHazard("YOUR_HAZARD_HERE")')
+            elif hazard in hazards:
                 self.hazard = hazard
-            else:
-                raise Exception('Method setHazard failed: Unable to set the hazard.',
-                                'Reinitialize the StudyRegion class and specify the hazard as one of the following: ' + str(hazards))
-        self.setScenario()
-        self.setReturnPeriod()
+            self.setScenario()
+            self.setReturnPeriod()
+        except:
+            raise Exception('Method setHazard failed: Unable to set the hazard.',
+                            'Reinitialize the StudyRegion class and specify the hazard as one of the following: ' + str(hazards))
 
     def setScenario(self, scenario=None):
-        # validate scenario
-        scenarios = self.getScenarios()
+        try:
+            # validate scenario
+            scenarios = self.getScenarios()
 
-        if scenario == None and len(scenarios) == 1:
-            self.scenario = scenarios[0]
-        elif scenario == None and len(scenarios) > 1:
-            self.scenario = scenarios[0]
-            print(str(scenarios) + ' scenario options available. Defaulting to ' +
-                  scenarios[0] + '. To change the scenario, use: StudyRegion.setHazard("YOUR_SCENARIO_HERE")')
-        else:
-            if scenario in scenarios:
-                self.scenario = scenario
-            else:
-                raise Exception('Method setScenario failed: Unable to set the scenario.',
-                                'Reinitialize the StudyRegion class and specify the scenario as one of the following: ' + str(scenarios))
+            if scenario == None and len(scenarios) == 1:
+                self.scenario = scenarios[0]
+            elif scenario == None and len(scenarios) > 1:
+                self.scenario = scenarios[0]
+                print(str(scenarios) + ' scenario options available. Defaulting to ' +
+                    scenarios[0] + '. To change the scenario, use: StudyRegion.setScenario("YOUR_SCENARIO_HERE")')
+            elif scenario in scenarios:
+                    self.scenario = scenario
+            self.setReturnPeriod()
+        except:
+            raise Exception('Method setScenario failed: Unable to set the scenario.',
+                            'Reinitialize the StudyRegion class and specify the scenario as one of the following: ' + str(scenarios))
 
     def setReturnPeriod(self, returnPeriod=None):
-        # validate return period
-        returnPeriods = self.getReturnPeriods()
+        try:
+            # validate return period
+            returnPeriods = self.getReturnPeriods()
 
-        if returnPeriod == None and len(returnPeriods) == 1:
-            self.returnPeriod = returnPeriods[0]
-        elif returnPeriod == None and len(returnPeriods) > 1:
-            self.returnPeriod = returnPeriods[0]
-            print(str(returnPeriods) + ' returnPeriod options available. Defaulting to ' +
-                  returnPeriods[0] + '. To change the returnPeriod, use: StudyRegion.setReturnPeriod("YOUR_RETURN_PERIOD_HERE")')
-        else:
-            if returnPeriod in returnPeriods:
+            if returnPeriod == None and len(returnPeriods) == 1:
+                self.returnPeriod = returnPeriods[0]
+            elif returnPeriod == None and len(returnPeriods) > 1:
+                self.returnPeriod = returnPeriods[0]
+                print(str(returnPeriods) + ' returnPeriod options available. Defaulting to ' +
+                    returnPeriods[0] + '. To change the returnPeriod, use: StudyRegion.setReturnPeriod("YOUR_RETURN_PERIOD_HERE")')
+            elif returnPeriod in returnPeriods:
                 self.returnPeriod = returnPeriod
-            else:
-                raise Exception('Method setReturnPeriod failed: Unable to set the returnPeriod.',
+        except:
+            raise Exception('Method setReturnPeriod failed: Unable to set the returnPeriod.',
                                 'Reinitialize the StudyRegion class and specify the return period as one of the following: ' + str(returnPeriods))
 
     def createConnection(self, orm='pyodbc'):
@@ -627,77 +628,38 @@ class StudyRegion():
                     gdf = self.query(sql)
                 hazardDict['Peak Ground Acceleration (g)'] = gdf
             if hazard == 'flood':
-                # this is a list instead of a dictionary, because some of the 'name' properties are the same
-                hazardPathDicts = [
-                    # Deterministic Riverine
-                    {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': 'C:/HazusData/Regions/' +
-                        self.name+'/'+self.scenario+'/Riverine/Depth/mix0/w001001.adf'},
-                    # Deterministic Coastal
-                    {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Coastal/Depth/mix0/w001001.adf'},
-                    # Probabilistic Riverine 5-year
-                    {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Riverine/Depth/rpd5/w001001.adf'},
-                    #  Probabilistic Riverine 10-year
-                    {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Riverine/Depth/rpd10/w001001.adf'},
-                    #  Probabilistic Riverine 25-year
-                    {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Riverine/Depth/rpd25/w001001.adf'},
-                    #  Probabilistic Riverine 50-year
-                    {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Riverine/Depth/rpd50/w001001.adf'},
-                    #  Probabilistic Riverine 100-year
-                    {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Riverine/Depth/rpd100/w001001.adf'},
-                    #  Probabilistic Riverine 500-year
-                    {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Riverine/Depth/rpd500/w001001.adf'},
-                    #  Probabilistic Coastal 5-year
-                    {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Coastal/Depth/rpd5/w001001.adf'},
-                    #  Probabilistic Coastal 10-year
-                    {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Coastal/Depth/rpd10/w001001.adf'},
-                    #  Probabilistic Coastal 25-year
-                    {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Coastal/Depth/rpd25/w001001.adf'},
-                    #  Probabilistic Coastal 50-year
-                    {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Coastal/Depth/rpd50/w001001.adf'},
-                    #  Probabilistic Coastal 100-year
-                    {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Coastal/Depth/rpd100/w001001.adf'},
-                    #  Probabilistic Coastal 500-year
-                    {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': 'C:/HazusData/Regions/'+self.name+'/' +
-                        self.scenario+'/Coastal/Depth/rpd500/w001001.adf'},
-                ]
-                for idx in range(len(hazardPathDicts)):
-                    if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod or self.returnPeriod == 'Mix0':
-                        try:
-                            raster = rio.open(hazardPathDicts[idx]['path'])
-                            affine = raster.meta.get('transform')
-                            crs = raster.meta.get('crs')
-                            band = raster.read(1)
-                            band = np.where(band < 0, 0, band)
-                            if round:
-                                band = np.rint(band)
+                base_path = 'C:/HazusData/Regions/'
 
-                            geoms = []
-                            for geometry, value in features.shapes(band, transform=affine):
-                                try:
-                                    if value >= 1:
-                                        result = {'properties': {
-                                            'PARAMVALUE': value}, 'geometry': geometry}
-                                    geoms.append(result)
-                                except:
-                                    pass
-                            gdf = gpd.GeoDataFrame.from_features(geoms)
-                            gdf.crs = crs
-                            gdf.geometry = gdf.geometry.to_crs(epsg=4326)
-                            hazardDict[hazardPathDicts[idx]['name']] = gdf
-                        except:
-                            pass
+                for root, dirs, files in os.walk(base_path + self.name, topdown=False):
+                    for name in files:
+                        full_path = os.path.join(root, name)
+                        if full_path.endswith('w001001.adf') and ('rpd' in full_path or 'mix0' in full_path ) and (self.scenario in full_path.split('\\')):
+                            try:
+                                raster = rio.open(full_path)
+                                affine = raster.meta.get('transform')
+                                crs = raster.meta.get('crs')
+                                band = raster.read(1)
+                                band = np.where(band < 0, 0, band)
+                                if round:
+                                    band = np.rint(band)
+
+                                geoms = []
+                                for geometry, value in features.shapes(band, transform=affine):
+                                    try:
+                                        if value >= 1:
+                                            result = {'properties': {
+                                                'PARAMVALUE': value}, 'geometry': geometry}
+                                            geoms.append(result)
+                                    except:
+                                        pass
+                                # breakpoint()
+                                gdf = gpd.GeoDataFrame.from_features(geoms)
+                                gdf.crs = crs
+                                gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+                                hazardDict[self.scenario] = gdf
+                            except:
+                                print('ERROR - getHazardGeoDataFrame')
+                                pass
             if hazard == 'hurricane':
                 try:
                     hazardPathDict = {
@@ -846,11 +808,13 @@ class StudyRegion():
                                     WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
                                         WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'hurricane':
-                sql = """SELECT DISTINCT [Return_Period] as returnPeriod FROM {s}.[dbo].[hv_huQsrEconLoss]""".format(
-                    s=self.name)
+                sql = """SELECT DISTINCT [Return_Period] as returnPeriod FROM {s}.[dbo].[hv_huQsrEconLoss] where huScenarioName = '{sc}'""".format(
+                    s=self.name, sc=self.scenario)
             if self.hazard == 'flood':  # TODO test if this works for UDF
-                sql = """SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM {s}.[dbo].[flFRGBSEcLossByTotal]""".format(
-                    s=self.name)
+                sql = """SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM {s}.[dbo].[flFRGBSEcLossByTotal]
+                where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
+                """.format(
+                    s=self.name, sc=self.scenario)
             if self.hazard == 'tsunami':  # selecting 0 due to no return period existing in database
                 sql = """SELECT '0' as returnPeriod FROM {s}.[dbo].[tsScenario]""".format(
                     s=self.name)

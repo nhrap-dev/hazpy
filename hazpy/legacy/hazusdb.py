@@ -125,7 +125,7 @@ class HazusDB():
             # self.studyRegions = studyRegions
             # return studyRegions
 
-            sql = """SELECT [RegionName] as studyRegion FROM [syHazus].[dbo].[syStudyRegion]"""
+            sql = """SELECT [RegionName] as studyRegion FROM [syHazus].[dbo].[syStudyRegion] WHERE Valid = 1"""
             queryset = self.query(sql)
             studyRegions = list(queryset['studyRegion'])
             self.studyRegions = studyRegions

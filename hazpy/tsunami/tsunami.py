@@ -1,6 +1,6 @@
 from ..common.classes import Base
-from .modules import GeneralBuildingStock
-from .modules import UserDefinedFacilities
+from .general_building_stock import GeneralBuildingStock
+from .udf import UDF
 
 class Tsunami(Base):
     """
@@ -17,4 +17,4 @@ class Tsunami(Base):
 class Analysis():
     def __init__(self):
         self.generalBuildingStock = GeneralBuildingStock()
-        self.userDefinedFacilities = UserDefinedFacilities()
+        self.UDF = UDF()

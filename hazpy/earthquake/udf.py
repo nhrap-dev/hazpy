@@ -1,3 +1,3 @@
-class UserDefinedStructures():
+class UDF():
     def __init__(self):
         pass
