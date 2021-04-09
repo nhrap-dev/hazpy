@@ -6,6 +6,7 @@ from shapely.wkt import loads
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import urllib
+import zipfile
 # TODO check if all geojsons are oriented correctly; if not, apply orient
 # try:
 #     from shapely.ops import orient  # version >=1.7a2
@@ -31,8 +32,9 @@ class StudyRegion():
             hazard: str -- the name of the peril. Only necessary if the study region has more than one hazard.
     """
 
-    def __init__(self, studyRegion):
+    def __init__(self, studyRegion, hprFile):
         self.name = studyRegion
+        self.hprFile = hprFile
         self.conn = self.createConnection()
 
         # set hazard, scenario, and return period
@@ -572,8 +574,36 @@ class StudyRegion():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
+##    def getHazardsAnalyzed(self, returnType='list'):
+##        """ Queries the local Hazus SQL Server database and returns all hazards analyzed
+##
+##            Key Argument:
+##                returnType: string -- choices: 'list', 'dict'
+##            Returns:
+##                df: pandas dataframe -- a dataframe of the hazards analyzed
+##        """
+##        try:
+##            sql = "select * from [syHazus].[dbo].[syStudyRegion] where [RegionName] = '" + \
+##                self.name + "'"
+##            df = self.query(sql)
+##            hazardsDict = {
+##                'earthquake': df['HasEqHazard'][0],
+##                'hurricane': df['HasHuHazard'][0],
+##                'tsunami': df['HasTsHazard'][0],
+##                'flood': df['HasFlHazard'][0]
+##            }
+##            if returnType == 'dict':
+##                return hazardsDict
+##            if returnType == 'list':
+##                hazardsList = list(
+##                    filter(lambda x: hazardsDict[x], hazardsDict))
+##                return hazardsList
+##        except:
+##            print("Unexpected error:", sys.exc_info()[0])
+##            raise
+
     def getHazardsAnalyzed(self, returnType='list'):
-        """ Queries the local Hazus SQL Server database and returns all hazards analyzed
+        """ Queries an HPR file and returns all hazards analyzed
 
             Key Argument:
                 returnType: string -- choices: 'list', 'dict'
@@ -581,14 +611,13 @@ class StudyRegion():
                 df: pandas dataframe -- a dataframe of the hazards analyzed
         """
         try:
-            sql = "select * from [syHazus].[dbo].[syStudyRegion] where [RegionName] = '" + \
-                self.name + "'"
-            df = self.query(sql)
+            z = zipfile.ZipFile(self.hprFile)
+            zComment = z.comment.decode('UTF-8').split('|')
             hazardsDict = {
-                'earthquake': df['HasEqHazard'][0],
-                'hurricane': df['HasHuHazard'][0],
-                'tsunami': df['HasTsHazard'][0],
-                'flood': df['HasFlHazard'][0]
+                'earthquake': zComment[4],
+                'hurricane': zComment[5],
+                'tsunami': zComment[6],
+                'flood': zComment[7]
             }
             if returnType == 'dict':
                 return hazardsDict
