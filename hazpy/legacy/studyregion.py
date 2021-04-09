@@ -603,21 +603,25 @@ class StudyRegion():
 ##            raise
 
     def getHazardsAnalyzed(self, returnType='list'):
-        """ Queries an HPR file and returns all hazards analyzed
+        """ Queries an HPR/zip file comment and returns all hazards analyzed
 
             Key Argument:
                 returnType: string -- choices: 'list', 'dict'
             Returns:
                 df: pandas dataframe -- a dataframe of the hazards analyzed
+
+            Notes: Version|RegionName|.bk|Earthquake|Flood|Hurricane|Tsunami
+                   i.e.: b'31ed16|202020|FIMJacksonMO|FIMJacksonMO.bk|0|1|0|0'
+                   The first pipe is unknown what it is.
         """
         try:
             z = zipfile.ZipFile(self.hprFile)
             zComment = z.comment.decode('UTF-8').split('|')
             hazardsDict = {
-                'earthquake': zComment[4],
-                'hurricane': zComment[5],
-                'tsunami': zComment[6],
-                'flood': zComment[7]
+                'earthquake': int(zComment[4]),
+                'hurricane': int(zComment[6]),
+                'tsunami': int(zComment[7]),
+                'flood': int(zComment[5])
             }
             if returnType == 'dict':
                 return hazardsDict
@@ -793,14 +797,18 @@ class StudyRegion():
         """
 
         try:
+##            if self.hazard == 'earthquake':
+##                sql = """SELECT [eqScenarioname] as scenarios
+##                            FROM [syHazus].[dbo].[eqScenario]
+##                            WHERE eqScenarioID = 
+##                                (SELECT [eqScenarioId]
+##                                    FROM [syHazus].[dbo].[eqRegionScenario]
+##                                    WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
+##                                        WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'earthquake':
                 sql = """SELECT [eqScenarioname] as scenarios
-                            FROM [syHazus].[dbo].[eqScenario]
-                            WHERE eqScenarioID = 
-                                (SELECT [eqScenarioId]
-                                    FROM [syHazus].[dbo].[eqRegionScenario]
-                                    WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
-                                        WHERE RegionName = '{s}'))""".format(s=self.name)
+                            FROM {s}.[dbo].[RgnExpeqScenario]
+                            """.format(s=self.name)
             # NOTE: huTemplateScenario can contain problematic suffixes if syHazus contains duplicate named scenarios; defaulting to distinct query
             if self.hazard == 'hurricane':  # hurricane can only have one active scenario
                 # sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
@@ -828,14 +836,18 @@ class StudyRegion():
 
         """
         try:
+##            if self.hazard == 'earthquake':
+##                sql = """SELECT [ReturnPeriod] as returnPeriod
+##                            FROM [syHazus].[dbo].[eqScenario]
+##                            WHERE eqScenarioID = 
+##                                (SELECT [eqScenarioId]
+##                                    FROM [syHazus].[dbo].[eqRegionScenario]
+##                                    WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
+##                                        WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'earthquake':
-                sql = """SELECT [ReturnPeriod] as returnPeriod
-                            FROM [syHazus].[dbo].[eqScenario]
-                            WHERE eqScenarioID = 
-                                (SELECT [eqScenarioId]
-                                    FROM [syHazus].[dbo].[eqRegionScenario]
-                                    WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
-                                        WHERE RegionName = '{s}'))""".format(s=self.name)
+                sql = """SELECT [eqScenarioname] as scenarios
+                            FROM {s}.[dbo].[RgnExpeqScenario]
+                            """.format(s=self.name)
             if self.hazard == 'hurricane':
                 sql = """SELECT DISTINCT [Return_Period] as returnPeriod FROM {s}.[dbo].[hv_huQsrEconLoss] where huScenarioName = '{sc}'""".format(
                     s=self.name, sc=self.scenario)
