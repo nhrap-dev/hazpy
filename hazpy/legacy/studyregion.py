@@ -602,33 +602,107 @@ class StudyRegion():
 ##            print("Unexpected error:", sys.exc_info()[0])
 ##            raise
 
+##    def getHazardsAnalyzed(self, returnType='list'):
+##        """ Queries an HPR/zip file comment and returns all hazards analyzed
+##
+##            Key Argument:
+##                returnType: string -- choices: 'list', 'dict'
+##            Returns:
+##                df: pandas dataframe -- a dataframe of the hazards analyzed
+##
+##            Notes: Version|RegionName|.bk|Earthquake|Flood|Hurricane|Tsunami
+##                   i.e.: b'31ed16|202020|FIMJacksonMO|FIMJacksonMO.bk|0|1|0|0'
+##                   The first pipe is unknown what it is.
+##        """
+##        try:
+##            z = zipfile.ZipFile(self.hprFile)
+##            zComment = z.comment.decode('UTF-8').split('|')
+##            hazardsDict = {
+##                'earthquake': int(zComment[4]),
+##                'hurricane': int(zComment[6]),
+##                'tsunami': int(zComment[7]),
+##                'flood': int(zComment[5])
+##            }
+##            if returnType == 'dict':
+##                return hazardsDict
+##            if returnType == 'list':
+##                hazardsList = list(
+##                    filter(lambda x: hazardsDict[x], hazardsDict))
+##                return hazardsList
+##        except:
+##            print("Unexpected error:", sys.exc_info()[0])
+##            raise
+        
     def getHazardsAnalyzed(self, returnType='list'):
-        """ Queries an HPR/zip file comment and returns all hazards analyzed
+        """This function is not yet complete.
+        HPR files are zipfiles and zipfiles have an embedded comment. This has
+        been used to store information at the hpr time of creation.
 
-            Key Argument:
-                returnType: string -- choices: 'list', 'dict'
-            Returns:
-                df: pandas dataframe -- a dataframe of the hazards analyzed
+        Notes: Version|RegionName|.bk|Earthquake|Flood|Hurricane
+               '31ed16|121212|NorCal-BayArea_SanAndreasM7-8|NorCal-BayArea_SanAndreasM7-8.bk|1|0|0'
 
-            Notes: Version|RegionName|.bk|Earthquake|Flood|Hurricane|Tsunami
-                   i.e.: b'31ed16|202020|FIMJacksonMO|FIMJacksonMO.bk|0|1|0|0'
-                   The first pipe is unknown what it is.
+               Version|RegionName|.bk|Earthquake|Flood|Hurricane|Tsunami
+               '31ed16|202020|FIMJacksonMO|FIMJacksonMO.bk|0|1|0|0'
+               
+               The first pipe is unknown what it is.
+               EQ added 1997
+               FL added 2003
+               HU 2004
+               TS 2017 added in Hazus 4.0
+
+               Only support as far back as Hazus 2.0.
         """
+        versionLookupDict = {'060606':'Hazus MR1'
+                             ,'070707':'Hazus MR2'
+                             ,'080808':'Hazus MR3'
+                             ,'090909':'Hazus MR4'
+                             ,'101010':'Hazus MR5'
+                             ,'111111':'Hazus 2.0'
+                             ,'121212':'Hazus 2.1'
+                             ,'131313':'Hazus 3.0'
+                             ,'141414':'Hazus 3.1'
+                             ,'151515':'Hazus 4.0'
+                             ,'161616':'Hazus 4.1'
+                             ,'171717':'Hazus 4.2'
+                             ,'181818':'Hazus 4.2.1'
+                             ,'191919':'Hazus 4.2.2'
+                             ,'202020':'Hazus 4.2.3'
+                             ,'212121':'Hazus 5.0'}
         try:
-            z = zipfile.ZipFile(self.hprFile)
+            z = zipfile.ZipFile(hpr)
             zComment = z.comment.decode('UTF-8').split('|')
-            hazardsDict = {
-                'earthquake': int(zComment[4]),
-                'hurricane': int(zComment[6]),
-                'tsunami': int(zComment[7]),
-                'flood': int(zComment[5])
-            }
+            zVersion = zComment[1]
+            if zVersion in versionLookupDict:
+                vHazus = versionLookupDict[zVersion]
+                if len(zComment) == 8:
+                    zRegionName = zComment[2]
+                    zbk = zComment[3]
+                    hazardsDict = {
+                        'earthquake': int(zComment[4]),
+                        'flood': int(zComment[5]),
+                        'hurricane': int(zComment[6]),
+                        'tsunami': int(zComment[7])}
+                elif len(zComment) == 7:
+                    zRegionName = zComment[2]
+                    zbk = zComment[3]
+                    hazardsDict = {
+                        'earthquake': int(zComment[4]),
+                        'flood': int(zComment[5]),
+                        'hurricane': int(zComment[6]),
+                        'tsunami': 0}
+                else:
+                    print(f'{zComment} not recognized')
+                    raise
+                print(vHazus, zComment)
+
             if returnType == 'dict':
                 return hazardsDict
             if returnType == 'list':
                 hazardsList = list(
                     filter(lambda x: hazardsDict[x], hazardsDict))
                 return hazardsList
+            else:
+                print(f'{zVersion} not in Hazus version list.')
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
