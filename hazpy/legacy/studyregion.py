@@ -24,6 +24,53 @@ from .studyregiondataframe import StudyRegionDataFrame
 from .report import Report
 
 
+class HazusPackageRegion():
+    """ Creates an HazusPackageRegion object from an Hazus Package Region (hpr) file and has functions to batch export.
+        Set the hazard,scenario,returnperiod to export?
+
+        Keyword Arguments:
+            hprFilePath: str -- the path of the .hpr file
+
+        Notes: Should create a directory for each Hazard/Studycase|Scenario/ScenarioType/ReturnPeriod for exported products.
+                Also should create a main spreadsheet metadata logging what it created and any issues/errors.
+    """
+    def __init__(self, hprFilePath):
+        self.hprFilePath = hprFilePath
+        self.conn = self.createConnection()
+
+        #create variables that can be iterated over
+        self.hazards = []
+        self.floodStudyCases = []
+        self.floodStudyCaseRiverineReturnPeriods = []
+        self.floodStudyCaseCoastalPeriods = []
+        self.floodStudyCaseRiverineCoastalPeriods = []
+
+    #hprfile info/hazards
+    #restore hpr file to sql server
+    #detach hpr file from sql server
+    #delete unzipped folder
+
+    #earthquakeProbalisticReturnPeriods 8return periods
+    #earthquakeProbalisticReturnPeriod
+    #earthquakeDeterministic
+    #earthquakeAAL?
+        
+    #floodStudyCases
+    #floodStudyCaseRiverineReturnPeriods
+    #floodStudyCaseRiverineReturnPeriod
+    #floodStudyCaseCoastalPeriods
+    #floodStudyCaseCoastalPeriod
+    #floodStudyCaseRiverineCoastalPeriods
+    #floodStudyCaseRiverineCoastalPeriod
+    #floodStudyCaseSurge
+    #floodAAL?
+
+    #hurricaneProbalistic 7return periods
+    #hurricaneDeterministic
+    #hurricaneAAL?
+
+    #tsunami
+
 class StudyRegion():
     """ Creates a study region object using an existing study region in the local Hazus database
 
@@ -669,11 +716,12 @@ class StudyRegion():
                              ,'202020':'Hazus 4.2.3'
                              ,'212121':'Hazus 5.0'}
         try:
-            z = zipfile.ZipFile(hpr)
+            z = zipfile.ZipFile(self.hprFile)
             zComment = z.comment.decode('UTF-8').split('|')
             zVersion = zComment[1]
             if zVersion in versionLookupDict:
                 vHazus = versionLookupDict[zVersion]
+                #handle hpr after Hazus 4.0
                 if len(zComment) == 8:
                     zRegionName = zComment[2]
                     zbk = zComment[3]
@@ -682,6 +730,7 @@ class StudyRegion():
                         'flood': int(zComment[5]),
                         'hurricane': int(zComment[6]),
                         'tsunami': int(zComment[7])}
+                #handle hpr before Hazus 4.0
                 elif len(zComment) == 7:
                     zRegionName = zComment[2]
                     zbk = zComment[3]
@@ -881,18 +930,18 @@ class StudyRegion():
 ##                                        WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'earthquake':
                 sql = """SELECT [eqScenarioname] as scenarios
-                            FROM {s}.[dbo].[RgnExpeqScenario]
+                            FROM [{s}].[dbo].[RgnExpeqScenario]
                             """.format(s=self.name)
             # NOTE: huTemplateScenario can contain problematic suffixes if syHazus contains duplicate named scenarios; defaulting to distinct query
             if self.hazard == 'hurricane':  # hurricane can only have one active scenario
                 # sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
                 #     s=self.name)
-                sql = """select distinct(huScenarioName) as scenarios from {s}.dbo.[huSummaryLoss]""".format(s=self.name)
+                sql = """select distinct(huScenarioName) as scenarios from [{s}].dbo.[huSummaryLoss]""".format(s=self.name)
             if self.hazard == 'flood':  # flood can have many scenarios
-                sql = """SELECT [StudyCaseName] as scenarios FROM {s}.[dbo].[flStudyCase]""".format(
+                sql = """SELECT [StudyCaseName] as scenarios FROM [{s}].[dbo].[flStudyCase]""".format(
                     s=self.name)
             if self.hazard == 'tsunami':  # tsunami can have many scenarios
-                sql = """SELECT [ScenarioName] as scenarios FROM {s}.[dbo].[tsScenario]""".format(
+                sql = """SELECT [ScenarioName] as scenarios FROM [{s}].[dbo].[tsScenario]""".format(
                     s=self.name)
 
             queryset = self.query(sql)
@@ -920,18 +969,18 @@ class StudyRegion():
 ##                                        WHERE RegionName = '{s}'))""".format(s=self.name)
             if self.hazard == 'earthquake':
                 sql = """SELECT [eqScenarioname] as scenarios
-                            FROM {s}.[dbo].[RgnExpeqScenario]
+                            FROM [{s}].[dbo].[RgnExpeqScenario]
                             """.format(s=self.name)
             if self.hazard == 'hurricane':
-                sql = """SELECT DISTINCT [Return_Period] as returnPeriod FROM {s}.[dbo].[hv_huQsrEconLoss] where huScenarioName = '{sc}'""".format(
+                sql = """SELECT DISTINCT [Return_Period] as returnPeriod FROM [{s}].[dbo].[hv_huQsrEconLoss] where huScenarioName = '{sc}'""".format(
                     s=self.name, sc=self.scenario)
             if self.hazard == 'flood':  # TODO test if this works for UDF
-                sql = """SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM {s}.[dbo].[flFRGBSEcLossByTotal]
+                sql = """SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM [{s}].[dbo].[flFRGBSEcLossByTotal]
                 where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                 """.format(
                     s=self.name, sc=self.scenario)
             if self.hazard == 'tsunami':  # selecting 0 due to no return period existing in database
-                sql = """SELECT '0' as returnPeriod FROM {s}.[dbo].[tsScenario]""".format(
+                sql = """SELECT '0' as returnPeriod FROM [{s}].[dbo].[tsScenario]""".format(
                     s=self.name)
 
             queryset = self.query(sql)
