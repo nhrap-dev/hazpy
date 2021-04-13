@@ -286,9 +286,11 @@ class HazusPackageRegion():
         print()
 
     def restoreHPR(self):
+        """Use several base functions together to effectively attach an hpr file to sql server for access by export functions.
+
+
         """
-        """
-        #unzipHPR...
+        #UnzipHPR...
         self.unzipHPR(self.hprFilePath, self.tempDir)
         #Find .bk files in unzipped folder...
         self.getBKFilePath(self.tempDir)
@@ -304,6 +306,27 @@ class HazusPackageRegion():
         self.restoreSQLServerBKFile(self.dbName, self.tempDir, self.bkFilePath, self.LogicalName_data, self.LogicalName_log, self.cursor)
         
     #GET DATA
+    def getHazardsScenariosReturnPeriods(self):
+        """Create a dictionary using the template in the notes so that it can be programmaticaly read to batch export.
+
+
+        Notes:
+             [{'Hazard':'flood',
+               'Scenarios':[
+                               {'ScenarioName':'JacksonMO_01',
+                                'ScenarioType':''
+                                'ReturnPeriods':['29']
+                               },
+                               {'ScenarioName':'JacksonMO_02',
+                                'ReturnPeriods':['2']
+                               }
+                           ]
+              },
+              {'Hazard':'hurricane',
+              etc...}
+             ]
+        """
+        
     #earthquakeProbalisticReturnPeriods 8return periods
     #earthquakeProbalisticReturnPeriod
     #earthquakeDeterministic
@@ -324,6 +347,9 @@ class HazusPackageRegion():
     #hurricaneAAL?
 
     #tsunami
+
+
+    #EXPORT DATA
 
     
     #CLEANUP
