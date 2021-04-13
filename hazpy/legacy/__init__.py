@@ -15,5 +15,6 @@ __all__ = []
 
 from .common import *
 from .hazusdb import *
+from .hazuspackageregion import *
 from .studyregion import *
 from .report import *
