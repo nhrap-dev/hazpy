@@ -306,9 +306,50 @@ class HazusPackageRegion():
         self.restoreSQLServerBKFile(self.dbName, self.tempDir, self.bkFilePath, self.LogicalName_data, self.LogicalName_log, self.cursor)
         
     #GET DATA
+    def query(self, sql):
+        """Performs a SQL query on the Hazus SQL Server database
+
+            Keyword Arguments:
+                sql: str -- a T-SQL query
+
+            Returns:
+                df: pandas dataframe
+        """
+        try:
+            df = pd.read_sql(sql, self.conn)
+            return HazusPackageRegionDataFrame(self, df)
+        except:
+            # NOTE: uncomment error print only for debugging
+            # print("Unexpected error:", sys.exc_info()[0])
+            raise
+        
+    def getReturnPeriods(self):
+        """
+        """
+
+    def getScenarios(self, hazard):
+        """
+        """
+        if hazard == 'earthquake':
+            sql = f"""SELECT [eqScenarioname] as scenarios FROM [bk_{self.dbName}].[dbo].[RgnExpeqScenario]"""
+        elif hazard == 'flood':
+            sql = f"""SELECT [StudyCaseName] as scenarios FROM [bk_{self.dbName}].[dbo].[flStudyCase]"""
+        elif hazard == 'hurricane':
+            sql = f"""select distinct(huScenarioName) as scenarios FROM [bk_{self.dbName}].dbo.[huSummaryLoss]"""
+        elif hazard == 'tsunami':
+            sql = f"""SELECT [ScenarioName] as scenarios FROM [bk_{self.dbName}].[dbo].[tsScenario]"""
+        else:
+            print('hazard not valid')
+            sql = ''
+        queryset = self.query(sql)
+        scenarios = list(queryset['scenarios'])
+        return scenarios
+        
     def getHazardsScenariosReturnPeriods(self):
         """Create a dictionary using the template in the notes so that it can be programmaticaly read to batch export.
 
+        Arguments:
+            self.hazard list assumes self.hazard is a list of strings
 
         Notes:
              [{'Hazard':'flood',
@@ -326,6 +367,29 @@ class HazusPackageRegion():
               etc...}
              ]
         """
+        print('Finding Hazards, Scenarios, Return Periods...')
+        HSRPList = []
+        for hazard in self.Hazards:
+            hazardDict = {}
+            hazardDict['Hazard'] = hazard
+            hazardDict['Scenarios'] = self.getScenarios(hazard)
+            
+##            if hazard == 'earthquake':
+##                scenarioList = self.getScenarios(hazard)
+##            elif hazard == 'flood':
+##                scenarioList = self.getScenarios(hazard)
+##            elif hazard == 'hurricane':
+##                scenarioList = self.getScenarios(hazard)
+##            elif hazard == 'tsunami':
+##                scenarioList = self.getScenarios(hazard)
+##            else:
+##                print('hazard does not match')
+
+            HSRPList.append(hazardDict)
+            
+        self.HazardsScenariosReturnPeriods = HSRPList
+        print('...Done')
+        print()
         
     #earthquakeProbalisticReturnPeriods 8return periods
     #earthquakeProbalisticReturnPeriod
@@ -353,23 +417,23 @@ class HazusPackageRegion():
 
     
     #CLEANUP
-    def detachDB(self, dbName, cursor):
+    def detachDB(self):
         """
         """
-        print(f'Detaching {dbName}...')
-        ##crsr.execute(f"USE [master] ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE") #may help with locks
-        cursor.execute(f"USE [master] EXEC master.dbo.sp_detach_db @dbname = N'bk_{dbName}'")
-        while cursor.nextset():
+        print(f'Detaching {self.dbName}...')
+        self.cursor.execute(f"USE [master] ALTER DATABASE [{self.dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE") #may help with locks
+        ##self.cursor.execute(f"USE [master] EXEC master.dbo.sp_detach_db @dbname = N'bk_{self.dbName}'")
+        while self.cursor.nextset():
             pass
         print('...done')
         print()
         
-    def deleteDIR(self, dirPath):
+    def deleteDIR(self):
         """
         """
-        print(f'Deleting temp folder:{dirPath}...')
+        print(f'Deleting temp folder:{self.tempDir}...')
         try:
-            shutil.rmtree(dirPath)
+            shutil.rmtree(self.tempDir)
         except OSError as e:
             print ("Error: %s - %s." % (e.filename, e.strerror))
         print('...done')
