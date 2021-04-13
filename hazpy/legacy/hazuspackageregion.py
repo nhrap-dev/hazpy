@@ -28,6 +28,9 @@ from .report import Report
 
 class HazusPackageRegion():
     """ Creates an HazusPackageRegion object from an Hazus Package Region (hpr) file and has functions to batch export.
+        1 Must run function to restore database before exporting
+        2 Must run exports functions
+        3 Must run cleanup functions
         Set the hazard,scenario,returnperiod to export?
 
         Keyword Arguments:
@@ -39,10 +42,10 @@ class HazusPackageRegion():
     """
     def __init__(self, hprFilePath, outputDir):
         self.hprFilePath = Path(hprFilePath)
-        self.tempDir = Path.joinpath(outputDir, hprPath.stem + '_temp')
-        self.outputDir = outputDir
+        self.outputDir = Path(outputDir)
+        self.tempDir = Path.joinpath(self.outputDir, self.hprFilePath.stem + '_temp')
 
-        self.hprComment = self.getHPRComment()
+        self.hprComment = self.getHPRComment(self.hprFilePath)
         self.HazusVersion = self.getHPRHazusVersion(self.hprComment)
         self.Hazards = self.getHPRHazards(self.hprComment)
         
@@ -126,22 +129,20 @@ class HazusPackageRegion():
             {'earthquake':0|1,'flood':0|1,'hurricane':0|1,'tsunami':0|1}
         """
         #handle hpr after Hazus 4.0
-        if len(zComment) == 8:
-            zRegionName = zComment[2]
-            zbk = zComment[3]
+        if len(hprComment) == 8:
+            zRegionName = hprComment[2]
             hazardsDict = {
-                'earthquake': int(zComment[4]),
-                'flood': int(zComment[5]),
-                'hurricane': int(zComment[6]),
-                'tsunami': int(zComment[7])}
+                'earthquake': int(hprComment[4]),
+                'flood': int(hprComment[5]),
+                'hurricane': int(hprComment[6]),
+                'tsunami': int(hprComment[7])}
         #handle hpr before Hazus 4.0
-        elif len(zComment) == 7:
-            zRegionName = zComment[2]
-            zbk = zComment[3]
+        elif len(hprComment) == 7:
+            zRegionName = hprComment[2]
             hazardsDict = {
-                'earthquake': int(zComment[4]),
-                'flood': int(zComment[5]),
-                'hurricane': int(zComment[6]),
+                'earthquake': int(hprComment[4]),
+                'flood': int(hprComment[5]),
+                'hurricane': int(hprComment[6]),
                 'tsunami': 0}
         if returnType == 'dict':
             return hazardsDict
@@ -169,17 +170,19 @@ class HazusPackageRegion():
         Note: there should be only one bkfile.
         """
         fileExt = r'*.bk'
-        bkList = list(pathlib.Path(fileDir).glob(fileExt))
+        bkList = list(Path(fileDir).glob(fileExt))
         print(f'Available bk files in {fileDir}: {bkList}')
         if len(bkList) > 1:
             print(f'Too many .bk files ({len(bkList)}), choosing the first one {str(bkList[0])}')
             print()
-            bkFilePath = Path.joinpath(dirPath, str(bkList[0]))
-            return bkFilePath
+            bkFilePath = Path.joinpath(fileDir, str(bkList[0]))
+            self.bkFilePath = bkFilePath
+            self.dbName = bkFilePath.stem
         elif len(bkList) == 1:
             print()
-            bkFilePath = Path.joinpath(dirPath, str(bkList[0]))
-            return bkFilePath
+            bkFilePath = Path.joinpath(fileDir, str(bkList[0]))
+            self.bkFilePath = bkFilePath
+            self.dbName = bkFilePath.stem
         else:
             print(f'no bkfile in {fileDir}')
         
@@ -286,19 +289,19 @@ class HazusPackageRegion():
         """
         """
         #unzipHPR...
-        unzipHPR(self.hprPath, self.outputDir)
+        self.unzipHPR(self.hprFilePath, self.tempDir)
         #Find .bk files in unzipped folder...
-        self.bkFilePath = getBKFilePath(self.tempDir)
+        self.getBKFilePath(self.tempDir)
         #Connect to SQL Server Hazus...
         self.conn = self.createConnection()
         self.conn.autocommit = True
         self.cursor = self.conn.cursor()
         #Get .bk file FileListHeaders info...
-        self.LogicalNames = self.getFileListHeadersFromDBFile(self, self.bkFilePath, cursor)
-        self.LogicalName_data = LogicalNames[0]
-        self.LogicalName_log = LogicalNames[1]
+        self.LogicalNames = self.getFileListHeadersFromDBFile(self.bkFilePath, self.cursor)
+        self.LogicalName_data = self.LogicalNames[0]
+        self.LogicalName_log = self.LogicalNames[1]
         #Restore the database using the FileListHeaders info...
-        self.restoreSQLServerBKFile(dbName, self.tempDir, self.bkFilePath, self.LogicalName_data, self.LogicalName_log, cursor)
+        self.restoreSQLServerBKFile(self.dbName, self.tempDir, self.bkFilePath, self.LogicalName_data, self.LogicalName_log, self.cursor)
         
     #GET DATA
     #earthquakeProbalisticReturnPeriods 8return periods
