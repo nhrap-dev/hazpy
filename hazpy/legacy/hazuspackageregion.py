@@ -22,8 +22,9 @@ import rasterio as rio
 from rasterio import features
 import numpy as np
 
-from .studyregiondataframe import StudyRegionDataFrame
+from .hazuspackageregiondataframe import HazusPackageRegionDataFrame #might be able to switch back to RegionDataFrame, since adding name property
 from .report import Report
+
 
 
 class HazusPackageRegion():
@@ -44,6 +45,9 @@ class HazusPackageRegion():
         self.hprFilePath = Path(hprFilePath)
         self.outputDir = Path(outputDir)
         self.tempDir = Path.joinpath(self.outputDir, self.hprFilePath.stem + '_temp')
+        
+        self.name = self.hprFilePath.stem #for HazusPackageRegionDataFrame
+        self.hazusPackageRegion = self.hprFilePath.stem #for HazusPackageRegionDataFrame
 
         self.hprComment = self.getHPRComment(self.hprFilePath)
         self.HazusVersion = self.getHPRHazusVersion(self.hprComment)
@@ -150,6 +154,7 @@ class HazusPackageRegion():
             hazardsList = list(
                 filter(lambda x: hazardsDict[x], hazardsDict))
             return hazardsList
+
 
 
     #RESTORE .HPR TO HAZUS SQL SERVER
@@ -304,6 +309,33 @@ class HazusPackageRegion():
         self.LogicalName_log = self.LogicalNames[1]
         #Restore the database using the FileListHeaders info...
         self.restoreSQLServerBKFile(self.dbName, self.tempDir, self.bkFilePath, self.LogicalName_data, self.LogicalName_log, self.cursor)
+
+
+
+    #CLEANUP
+    def detachDB(self):
+        """
+        """
+        print(f'Detaching {self.dbName}...')
+        self.cursor.execute(f"USE [master] ALTER DATABASE [{self.dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE") #may help with locks
+        ##self.cursor.execute(f"USE [master] EXEC master.dbo.sp_detach_db @dbname = N'bk_{self.dbName}'")
+        while self.cursor.nextset():
+            pass
+        print('...done')
+        print()
+        
+    def deleteDIR(self):
+        """
+        """
+        print(f'Deleting temp folder:{self.tempDir}...')
+        try:
+            shutil.rmtree(self.tempDir)
+        except OSError as e:
+            print ("Error: %s - %s." % (e.filename, e.strerror))
+        print('...done')
+        print()
+
+        
         
     #GET DATA
     def query(self, sql):
@@ -323,27 +355,49 @@ class HazusPackageRegion():
             # print("Unexpected error:", sys.exc_info()[0])
             raise
         
-    def getReturnPeriods(self):
+    def getReturnPeriods(self, hazard, scenario):
         """
         """
+        try:
+            if hazard == 'earthquake':
+                sql = f"SELECT [ReturnPeriod] as returnPeriod FROM [bk_{self.dbName}].[dbo].[RgnExpeqScenario]"
+            if hazard == 'hurricane':
+                sql = f"SELECT DISTINCT [Return_Period] as returnPeriod FROM [bk_{self.dbName}].[dbo].[hv_huQsrEconLoss] WHERE huScenarioName = '{scenario}'"
+            if hazard == 'flood':  # TODO test if this works for UDF
+                sql = f"""SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM [bk_{self.dbName}].[dbo].[flFRGBSEcLossByTotal]
+                        WHERE StudyCaseId = (SELECT StudyCaseID FROM [bk_{self.dbName}].[dbo].[flStudyCase] WHERE StudyCaseName = '{scenario}')"""
+            if hazard == 'tsunami':  # selecting 0 due to no return period existing in database
+                sql = f"SELECT '0' as returnPeriod FROM [bk_{self.dbName}].[dbo].[tsScenario]"
 
+            queryset = self.query(sql)
+            returnPeriods = list(queryset['returnPeriod'])
+            # assign as 0 if no return periods exists
+            if len(returnPeriods) == 0:
+                returnPeriods.append('0')
+            return returnPeriods
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+        
     def getScenarios(self, hazard):
         """
         """
-        if hazard == 'earthquake':
-            sql = f"""SELECT [eqScenarioname] as scenarios FROM [bk_{self.dbName}].[dbo].[RgnExpeqScenario]"""
-        elif hazard == 'flood':
-            sql = f"""SELECT [StudyCaseName] as scenarios FROM [bk_{self.dbName}].[dbo].[flStudyCase]"""
-        elif hazard == 'hurricane':
-            sql = f"""select distinct(huScenarioName) as scenarios FROM [bk_{self.dbName}].dbo.[huSummaryLoss]"""
-        elif hazard == 'tsunami':
-            sql = f"""SELECT [ScenarioName] as scenarios FROM [bk_{self.dbName}].[dbo].[tsScenario]"""
-        else:
-            print('hazard not valid')
-            sql = ''
-        queryset = self.query(sql)
-        scenarios = list(queryset['scenarios'])
-        return scenarios
+        try:
+            if hazard == 'earthquake':
+                sql = f"SELECT [eqScenarioname] as scenarios FROM [bk_{self.dbName}].[dbo].[RgnExpeqScenario]"
+            if hazard == 'flood':
+                sql = f"SELECT [StudyCaseName] as scenarios FROM [bk_{self.dbName}].[dbo].[flStudyCase]"
+            if hazard == 'hurricane':
+                sql = f"SELECT distinct(huScenarioName) as scenarios FROM [bk_{self.dbName}].dbo.[huSummaryLoss]"
+            if hazard == 'tsunami':
+                sql = f"SELECT [ScenarioName] as scenarios FROM [bk_{self.dbName}].[dbo].[tsScenario]"
+            queryset = self.query(sql)
+            scenarios = list(queryset['scenarios'])
+            return scenarios
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+            
         
     def getHazardsScenariosReturnPeriods(self):
         """Create a dictionary using the template in the notes so that it can be programmaticaly read to batch export.
@@ -352,6 +406,8 @@ class HazusPackageRegion():
             self.hazard list assumes self.hazard is a list of strings
 
         Notes:
+            ReturnPeriods may have extra spaces.
+        
              [{'Hazard':'flood',
                'Scenarios':[
                                {'ScenarioName':'JacksonMO_01',
@@ -372,18 +428,16 @@ class HazusPackageRegion():
         for hazard in self.Hazards:
             hazardDict = {}
             hazardDict['Hazard'] = hazard
-            hazardDict['Scenarios'] = self.getScenarios(hazard)
             
-##            if hazard == 'earthquake':
-##                scenarioList = self.getScenarios(hazard)
-##            elif hazard == 'flood':
-##                scenarioList = self.getScenarios(hazard)
-##            elif hazard == 'hurricane':
-##                scenarioList = self.getScenarios(hazard)
-##            elif hazard == 'tsunami':
-##                scenarioList = self.getScenarios(hazard)
-##            else:
-##                print('hazard does not match')
+            scenarioList = self.getScenarios(hazard)
+            scenarioDictList = []
+            for scenario in scenarioList:
+                scenarioDict = {}
+                scenarioDict['ScenarioName'] = scenario
+                scenarioDict['ReturnPeriods'] = self.getReturnPeriods(hazard, scenario)
+                scenarioDictList.append(scenarioDict)
+                
+            hazardDict['Scenarios'] = scenarioDictList
 
             HSRPList.append(hazardDict)
             
@@ -413,28 +467,8 @@ class HazusPackageRegion():
     #tsunami
 
 
+
     #EXPORT DATA
 
     
-    #CLEANUP
-    def detachDB(self):
-        """
-        """
-        print(f'Detaching {self.dbName}...')
-        self.cursor.execute(f"USE [master] ALTER DATABASE [{self.dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE") #may help with locks
-        ##self.cursor.execute(f"USE [master] EXEC master.dbo.sp_detach_db @dbname = N'bk_{self.dbName}'")
-        while self.cursor.nextset():
-            pass
-        print('...done')
-        print()
-        
-    def deleteDIR(self):
-        """
-        """
-        print(f'Deleting temp folder:{self.tempDir}...')
-        try:
-            shutil.rmtree(self.tempDir)
-        except OSError as e:
-            print ("Error: %s - %s." % (e.filename, e.strerror))
-        print('...done')
-        print()
+
