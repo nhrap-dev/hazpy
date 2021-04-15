@@ -53,7 +53,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
         try:
 
             sql = """SELECT CensusBlock as block, Shape.STAsText() AS geometry FROM {s}.dbo.hzCensusBlock""".format(
-                s=self.studyRegion)
+                s=self.hazusPackageRegion)
 
             df = self.query(sql)
             newDf = pd.merge(df, self, on="block")
@@ -72,17 +72,17 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
             temp_df = self.copy()
             if not 'county' in temp_df.columns:
                 if not 'tract' in temp_df.columns:
-                    sql = """SELECT [CensusBlock] as block, [Tract] as tract FROM {s}.[dbo].[hzCensusBlock]""".format(s=self.studyRegion)
+                    sql = """SELECT [CensusBlock] as block, [Tract] as tract FROM {s}.[dbo].[hzCensusBlock]""".format(s=self.hazusPackageRegion)
                     update_df = self.query(sql)
                     temp_df = pd.merge(update_df, temp_df, on="block")
-                sql = """SELECT [Tract] as tract, [CountyFips] as countyfips FROM {s}.[dbo].[hzTract]""".format(s=self.studyRegion)
+                sql = """SELECT [Tract] as tract, [CountyFips] as countyfips FROM {s}.[dbo].[hzTract]""".format(s=self.hazusPackageRegion)
                 update_df = self.query(sql)
                 temp_df = pd.merge(update_df, temp_df, on="tract")
 
             sql = """select state, county, countyfips, geometry from 
                     (SELECT State as stateid, CountyFips as countyfips, CountyName as county, Shape.STAsText() AS geometry FROM {s}.dbo.hzCounty) c
                     inner join (select StateID as stateid, StateName as state FROM [syHazus].[dbo].[syState]) s
-                    on c.stateid = s.stateid""".format(s=self.studyRegion) 
+                    on c.stateid = s.stateid""".format(s=self.hazusPackageRegion) 
 
             update_df = self.query(sql)
             temp_df = pd.merge(update_df, temp_df, on="countyfips")
