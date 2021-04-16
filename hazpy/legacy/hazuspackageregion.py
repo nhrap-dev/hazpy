@@ -48,7 +48,7 @@ class HazusPackageRegion():
         self.outputDir = Path.joinpath(Path(outputDir), self.hprFilePath.stem)
         self.tempDir = Path.joinpath(Path(outputDir), self.hprFilePath.stem + '_temp')
         
-        self.name = '' #bkifilename/database #also used in HazusPackageRegionDataFrame
+        self.name = '' #'bk_' + self.dbName #also used in HazusPackageRegionDataFrame
         self.hazard = ''
         self.scenario = ''
         self.returnPeriod = ''
@@ -58,7 +58,7 @@ class HazusPackageRegion():
         self.HazusVersion = self.getHPRHazusVersion(self.hprComment)
         self.Hazards = self.getHPRHazards(self.hprComment)
         self.bkFilePath = ''
-        self.dbName = ''
+        self.dbName = '' #does not include 'bk_' prefix
         self.LogicalNames = []
         self.LogicalName_data = ''
         self.LogicalName_log = '' #tuple ()
@@ -325,18 +325,28 @@ class HazusPackageRegion():
 
 
     #CLEANUP
-    def detachDB(self):
+##    def detachDB(self):
+##        """
+##        Notes: Detaching a db resets the .mdf and .log file permissions.
+##        """
+##        print(f'Detaching {self.dbName}...')
+##        ##self.cursor.execute(f"USE [master] ALTER DATABASE [{self.dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
+##        self.cursor.execute(f"USE [master] EXEC master.dbo.sp_detach_db @dbname = N'bk_{self.dbName}'")
+##        while self.cursor.nextset():
+##            pass
+##        print('...done')
+##        print()
+
+    def dropDB(self):
         """
+        Notes: dropping a db deletes the .mdf and .log files.
         """
-        print(f'Detaching {self.dbName}...')
-        self.cursor.execute(f"USE [master] ALTER DATABASE [{self.dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE") #may help with locks
-        ##self.cursor.execute(f"USE [master] EXEC master.dbo.sp_detach_db @dbname = N'bk_{self.dbName}'")
-        while self.cursor.nextset():
-            pass
+        print(f'Dropping {self.name}...')
+        self.cursor.execute(f"USE MASTER ALTER DATABASE [{self.name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE DROP DATABASE IF EXISTS [{self.name}]")
         print('...done')
         print()
         
-    def deleteDIR(self):
+    def deleteTempDir(self):
         """
         """
         print(f'Deleting temp folder:{self.tempDir}...')
@@ -459,7 +469,8 @@ class HazusPackageRegion():
 
 
 
-    #GET RESULTS
+    #GET RESULTS TO EXPORT
+    """
     #earthquakeProbalisticReturnPeriods 8return periods
     #earthquakeProbalisticReturnPeriod
     #earthquakeDeterministic
@@ -480,6 +491,7 @@ class HazusPackageRegion():
     #hurricaneAAL?
 
     #tsunami
+    """
         
     def getEconomicLoss(self):
         """
@@ -1097,8 +1109,164 @@ class HazusPackageRegion():
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+        
+def getHazardGeoDataFrame(self, round=True):
+        """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
 
-    #EXPORT DATA
+            Keyword Arguments:
+                round: boolean -- if True, the hazard rasters will be rounded to the nearest integer (default: True)
+
+            Returns:
+                hazardGDF: geopandas GeoDataFrame -- a geodataframe containing the spatial hazard data
+        """
+        try:
+            hazard = self.hazard
+            # the operator controls if hazard data includes zero values ('>=' does include; '>' doesn't include)
+            # TODO operator is only part of hurricane - build operator into other hazards
+            operator = '>='
+            hazardDict = {}
+            if hazard == 'earthquake':
+                try:
+                    path = Path.joinpath(self.tempdir, self.name,'shape/pga.shp') #needs testing
+                    gdf = gpd.read_file(path)
+                except:
+                    sql = """SELECT a.tract, PARAMVALUE, geometry FROM
+                        (SELECT [Tract] as tract ,[PGA] as PARAMVALUE FROM {s}.[dbo].[eqTract]) a
+                        inner join
+                        (SELECT Tract as tract, Shape.STAsText() AS geometry FROM {s}.dbo.hzTract) b
+                        on a.tract = b.tract""".format(s=self.name)
+                    gdf = self.query(sql)
+                hazardDict['Peak Ground Acceleration (g)'] = gdf
+                
+            if hazard == 'flood':
+                base_path = Path.joinpath(self.tempDir, Path(self.scenario)) #{tempdir/{scenarioname} #needs testing
+
+                for root, dirs, files in os.walk(base_path, topdown=False):
+                    for name in files:
+                        full_path = os.path.join(root, name)
+                        if full_path.endswith('w001001.adf') and ('rpd' in full_path or 'mix0' in full_path ) and (self.scenario in full_path.split('\\')):
+                            try:
+                                raster = rio.open(full_path)
+                                affine = raster.meta.get('transform')
+                                crs = raster.meta.get('crs')
+                                band = raster.read(1)
+                                band = np.where(band < 0, 0, band)
+                                if round:
+                                    band = np.rint(band)
+
+                                geoms = []
+                                for geometry, value in features.shapes(band, transform=affine):
+                                    try:
+                                        if value >= 1:
+                                            result = {'properties': {
+                                                'PARAMVALUE': value}, 'geometry': geometry}
+                                            geoms.append(result)
+                                    except:
+                                        pass
+                                # breakpoint()
+                                gdf = gpd.GeoDataFrame.from_features(geoms)
+                                gdf.crs = crs
+                                gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+                                hazardDict[self.scenario] = gdf
+                            except:
+                                print('ERROR - getHazardGeoDataFrame')
+                                pass
+                            
+            if hazard == 'hurricane':
+                try:
+                    hazardPathDict = {
+                        # Historic
+                        'Historic Wind Speeds (mph)':
+                        {'returnPeriod': '0',
+                            'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario, o=operator)},
+                        # Deterministic
+                        'Wind Speeds (mph)':
+                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
+                            s=self.name, sc=self.scenario, o=operator)},
+                        # Probabilistic 10-year
+                        'Wind Speeds (mph) - 10-year':
+                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 20-year
+                        'Wind Speeds (mph) - 20-year':
+                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 50-year
+                        'Wind Speeds (mph) - 50-year':
+                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 100-year
+                        'Wind Speeds (mph) - 100-year':
+                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 200-year
+                        'Wind Speeds (mph) - 200-year':
+                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 500-year
+                        'Wind Speeds (mph) - 500-year':
+                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 1000-year
+                        'Wind Speeds (mph) - 1000-year':
+                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr {o} 0'.format(
+                            s=self.name, o=operator)}
+                    }
+                    for key in hazardPathDict.keys():
+                        if hazardPathDict[key]['returnPeriod'] == self.returnPeriod:
+                            try:
+                                df = self.query(hazardPathDict[key]['path'])
+                                if len(df) > 0:
+                                    sdf = HazusPackageRegionDataFrame(self, df)
+                                    sdf = sdf.addGeometry()
+                                    sdf['geometry'] = sdf['geometry'].apply(
+                                        loads)
+                                    gdf = gpd.GeoDataFrame(
+                                        sdf, geometry='geometry')
+                                    hazardDict[key] = gdf
+                            except:
+                                pass
+                except:
+                    pass
+
+            if hazard == 'tsunami':
+                raster = rio.open(Path.joinpath(self.tempdir, self.name, '/maxdg_dft/w001001.adf')) #needs testing
+                affine = raster.meta.get('transform')
+                crs = raster.meta.get('crs')
+                band = raster.read(1)
+                band = np.where(band < 0, 0, band)
+                if round:
+                    band = np.rint(band)
+
+                geoms = []
+                for geometry, value in features.shapes(band, transform=affine):
+                    try:
+                        if value >= 1:
+                            result = {'properties': {
+                                'PARAMVALUE': value}, 'geometry': geometry}
+                        geoms.append(result)
+                    except:
+                        pass
+                gdf = gpd.GeoDataFrame.from_features(geoms)
+                gdf.PARAMVALUE[gdf.PARAMVALUE > 60] = 0
+                gdf.crs = crs
+                gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+                hazardDict['Water Depth (ft)'] = gdf
+
+            keys = list(hazardDict.keys())
+            if len(hazardDict.keys()) > 1:
+                gdf = gpd.GeoDataFrame(
+                    pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
+            else:
+                gdf = hazardDict[keys[0]]
+            sdf = HazusPackageRegionDataFrame(self, gdf)
+            sdf.title = keys[0]
+            return sdf
+        except Exception as e:
+            print("Unexpected error:", sys.exc_info()[0])
+            print(e)
+            raise
+
 
     
 
