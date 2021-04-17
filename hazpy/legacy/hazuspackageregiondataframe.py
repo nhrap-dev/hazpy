@@ -128,7 +128,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
         """ Exports a StudyRegionDataFrame to an Esri Shapefile
 
             Keyword Arguments: \n
-                path: str -- the output directory path, file name, and extention (example: 'C:/directory/filename.shp')
+                path: str -- F)
         """
         try:
             if 'geometry' not in self.columns:
@@ -157,3 +157,26 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    def toHLLGeoJSON(self, path):
+        '''Convert EconLossDF from pandas dataframe to geodataframe.
+
+            Keyword Arguments:
+                path: str -- the output directory path, file name, and extention (example: 'C:/directory/hll_EconLossSimplified.geojson'
+        
+        '''
+        try:
+            if 'geometry' not in self.columns:
+                self = self.addGeometry()
+            self['geometry'] = self['geometry'].apply(lambda x: loads(str(x)))
+            self['geometry'] = [MultiPolygon([x]) if type(
+                x) == Polygon else x for x in self['geometry']]
+            gdf = gpd.GeoDataFrame(self, geometry='geometry')
+            #simplify shape...
+            gdf['dissolvefield'] = 1
+            dissolved = gdf.dissolve(by='dissolvefield')
+            dissolved = dissolved.simplify(1)
+            dissolved.to_file(path, driver='GeoJSON')
+        except Exception as e:
+            print(e)
+
