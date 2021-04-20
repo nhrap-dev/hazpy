@@ -1114,6 +1114,36 @@ class HazusPackageRegion():
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    def getTravelTimeToSafety(self):
+        """Creates a geodataframe of the travel time to safety
+
+            Returns:
+                gdf: geopandas geodataframe -- a geodataframe of the counties
+
+            Notes: Used by report.py
+        """
+        if self.hazard == 'tsunami':
+            try:
+
+                sql = """SELECT
+                    tiger.CensusBlock,
+                    tiger.Tract, tiger.Shape.STAsText() AS geometry,
+                    ISNULL(travel.Trav_SafeUnder65, 0) as travelTimeUnder65yo,
+                    ISNULL(travel.Trav_SafeOver65, 0) as travelTimeOver65yo
+                        FROM {s}.dbo.[hzCensusBlock_TIGER] as tiger
+                            FULL JOIN {s}.dbo.tsTravelTime as travel
+                                ON tiger.CensusBlock = travel.CensusBlock""".format(s=self.name)
+
+                df = self.query(sql)
+                df['geometry'] = df['geometry'].apply(loads)
+                gdf = gpd.GeoDataFrame(df, geometry='geometry')
+                return gdf
+            except:
+                print("Unexpected error:", sys.exc_info()[0])
+                raise
+        else:
+            print("This method is only available for tsunami study regions")
         
     def getHazardGeoDataFrame(self, round=True):
             """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
