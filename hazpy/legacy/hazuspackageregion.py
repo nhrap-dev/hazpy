@@ -1144,6 +1144,30 @@ class HazusPackageRegion():
                 raise
         else:
             print("This method is only available for tsunami study regions")
+
+    def getCounties(self):
+        """Creates a dataframe of the county name and geometry for all counties in the study region
+
+            Returns:
+                gdf: geopandas geodataframe -- a geodataframe of the counties
+        """
+        try:
+
+            sql = """SELECT 
+                        CountyName as "name",
+                        NumAggrTracts as "size",
+                        Shape.STAsText() as "geometry",
+                        Shape.STSrid as "crs"
+                        FROM [{s}].[dbo].[hzCounty]
+                """.format(s=self.name)
+
+            df = self.query(sql)
+            df['geometry'] = df['geometry'].apply(loads)
+            gdf = gpd.GeoDataFrame(df, geometry='geometry')
+            return gdf
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
         
     def getHazardGeoDataFrame(self, round=True):
             """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
@@ -1306,6 +1330,9 @@ class HazusPackageRegion():
                 print(e)
                 raise
 
-
+    def createReport(self):
+        """
+        """
+        self.report = Report(self, self.name, '', self.hazard)
     
 
