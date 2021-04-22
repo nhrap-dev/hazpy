@@ -20,9 +20,9 @@ print()
 
 #CREATE HazusPackageRegion OBJECT...
 #file = r'C:\workspace\hprfiles\NorCal-BayArea_SanAndreasM7-8.hpr' #EQ
-#file = r'C:\workspace\hprfiles\banMO.hpr' #Flood FIM
+file = r'C:\workspace\hprfiles\banMO.hpr' #Flood FIM
 #file = r'C:\workspace\hprfiles\FIMHPRs\LChamNYVT_1.hpr' #sample FIM, largest size, 6 returnperiods?
-file = r'C:\workspace\hprfiles\FIMHPRs\nora.hpr' #sample FIM
+#file = r'C:\workspace\hprfiles\FIMHPRs\nora.hpr' #sample FIM
 #file = r'C:\workspace\hprfiles\FIMHPRs\lanmi_01.hpr' #sample FIM should have 305 depth grids
 
 
@@ -125,7 +125,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
 
             #GET BULK OF RESULTS...
             try:
-                print('Get bulk of results.')
+                print('Get bulk of results...')
                 results = hpr.getResults()
                 essentialFacilities = hpr.getEssentialFacilities()
                 if len(results) < 1:
@@ -141,6 +141,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
             #EXPORT Hazus Package Region TO CSV...
             try:
                 try:
+                    print('Writing results to csv...')
                     results.toCSV(Path.joinpath(exportPath, 'results.csv'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     downloadUUID = uuid.uuid4()
@@ -153,7 +154,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Base results not available to export to csv.')
+                    print('Base results not available to export to csv...')
                     print(e)
                     
                 try:
@@ -170,7 +171,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Building damage by occupancy not available to export to csv.')
+                    print('Building damage by occupancy not available to export to csv...')
                     print(e)
                     
                 try:
@@ -187,7 +188,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Building damage by type not available to export to csv.')
+                    print('Building damage by type not available to export to csv...')
                     print(e)
                     
                 try:
@@ -212,7 +213,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
             #EXPORT Hazus Package Region TO Shapefile...
             try:
                 try:
-                    print('Writing results to shapefile.')
+                    print('Writing results to shapefile...')
                     results.toShapefile(Path.joinpath(exportPath, 'results.shp'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'results.shp')
@@ -224,7 +225,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Base results not available to export to shapefile.')
+                    print('Base results not available to export to shapefile...')
                     print(e)
                     
                 try:
@@ -240,7 +241,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Damaged facilities not available to export to shapefile.')
+                    print('Damaged facilities not available to export to shapefile...')
                     print(e)
                     
                 try:
@@ -258,7 +259,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Hazard not available to export to shapefile.')
+                    print('Hazard not available to export to shapefile...')
                     print(e)
             except Exception as e:
                 print(u"Unexpected error exporting Shapefile: ")
@@ -267,6 +268,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
             #EXPORT Hazus Package Region TO GeoJSON...
             try:
                 try:
+                    print('Writing Results to geojson...')
                     results.toGeoJSON(Path.joinpath(exportPath, 'results.geojson'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'results.geojson')
@@ -278,10 +280,11 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Base results not available to export to geojson.')
+                    print('Base results not available to export to geojson')
                     print(e)
                     
                 try:
+                    print('Writing Damaged Facilities to geojson...')
                     essentialFacilities.toGeoJSON(Path.joinpath(exportPath, 'damaged_facilities.geojson'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'damaged_facilities.geojson')
@@ -297,6 +300,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                     print(e)
                     
                 try:
+                    print('Writing Hazard to geojson...')
                     if not 'hazardGDF' in dir():
                         hazardGDF = hpr.getHazardGeoDataFrame()
                     hazardGDF.toGeoJSON(Path.joinpath(exportPath, 'hazard.geojson'))
@@ -310,10 +314,11 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                                                                       'file':filePathRel,
                                                                       'analysis':scenarioUUID}, ignore_index=True)
                 except Exception as e:
-                    print('Hazard not available to export to geojson.')
+                    print('Writing Hazard not available to export to geojson...')
                     print(e)
 
                 try:
+                    print('Econloss Simplified Convex Hull HLL to geojson.')
                     econloss = hpr.getEconomicLoss()
                     if len(econloss.loc[econloss['EconLoss'] > 0]) > 0:
                         econloss.toHLLGeoJSON(Path.joinpath(exportPath, 'econloss_simpconvexHLL.geojson'))
