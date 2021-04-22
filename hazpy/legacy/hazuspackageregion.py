@@ -344,7 +344,7 @@ class HazusPackageRegion():
 
     def dropDB(self):
         """
-        Notes: dropping a db deletes the .mdf and .log files.
+        Notes: dropping a db deletes the .mdf and .log files. This may leave a logfile?
         """
         print(f'Dropping {self.name}...')
         self.cursor.execute(f"USE MASTER ALTER DATABASE [{self.name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE DROP DATABASE IF EXISTS [{self.name}]")
@@ -1184,6 +1184,7 @@ class HazusPackageRegion():
                 # TODO operator is only part of hurricane - build operator into other hazards
                 operator = '>='
                 hazardDict = {}
+                #EARTHQUAKE
                 if hazard == 'earthquake':
                     try:
                         path = Path.joinpath(self.tempdir, self.name,'shape/pga.shp') #needs testing
@@ -1196,9 +1197,12 @@ class HazusPackageRegion():
                             on a.tract = b.tract""".format(s=self.name)
                         gdf = self.query(sql)
                     hazardDict['Peak Ground Acceleration (g)'] = gdf
-                    
+
+                #FLOOD
+##                print(hazard) #debug
                 if hazard == 'flood':
                     base_path = Path.joinpath(self.tempDir, Path(self.scenario)) #{tempdir/{scenarioname} #needs testing
+                    print(base_path)
                     for root, dirs, files in os.walk(base_path, topdown=False):
                         for name in files:
                             full_path = os.path.join(root, name)
@@ -1230,9 +1234,9 @@ class HazusPackageRegion():
                                 except:
                                     print('ERROR - getHazardGeoDataFrame')
                                     pass
-                            else:
-                                print('getHazardGeoDataFrame: flood, no match')
-                                
+##                            else: #debug
+##                                print('getHazardGeoDataFrame: flood, no match')
+                #HURRICANE        
                 if hazard == 'hurricane':
                     try:
                         hazardPathDict = {
@@ -1289,7 +1293,7 @@ class HazusPackageRegion():
                                     pass
                     except:
                         pass
-
+                #TSUNAMI
                 if hazard == 'tsunami':
                     raster = rio.open(Path.joinpath(self.tempdir, self.name, '/maxdg_dft/w001001.adf')) #needs testing
                     affine = raster.meta.get('transform')
@@ -1314,12 +1318,14 @@ class HazusPackageRegion():
                     gdf.geometry = gdf.geometry.to_crs(epsg=4326)
                     hazardDict['Water Depth (ft)'] = gdf
 
-                keys = list(hazardDict.keys())
+                keys = list(hazardDict.keys()) #debug
                 print(keys)
+                
                 if len(hazardDict.keys()) > 1:
-                    gdf = gpd.GeoDataFrame(
-                        pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
+                    print('>1')
+                    gdf = gpd.GeoDataFrame(pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
                 else:
+                    print('<=1')
                     gdf = hazardDict[keys[0]]
                 sdf = HazusPackageRegionDataFrame(self, gdf)
                 sdf.title = keys[0]

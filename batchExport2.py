@@ -9,12 +9,22 @@ import os
 import pandas as pd
 import uuid
 
-
 #ITERATE OVER THE HPR FILES/???EVENT???...
+hprDir = r'C:\workspace\hprfiles'
+fileExt = r'*.hpr'
+print(f'Testing HPR List from {hprDir}...')
+hprList = list(Path(hprDir).glob(fileExt))
+for hpr in hprList:
+    print(hpr)
+print()
 
 #CREATE HazusPackageRegion OBJECT...
-#file = r'C:\workspace\hprfiles\NorCal-BayArea_SanAndreasM7-8.hpr'
-file = r'C:\workspace\hprfiles\banMO.hpr'
+#file = r'C:\workspace\hprfiles\NorCal-BayArea_SanAndreasM7-8.hpr' #EQ
+#file = r'C:\workspace\hprfiles\banMO.hpr' #Flood FIM
+#file = r'C:\workspace\hprfiles\FIMHPRs\LChamNYVT_1.hpr' #sample FIM, largest size, 6 returnperiods?
+file = r'C:\workspace\hprfiles\FIMHPRs\nora.hpr' #sample FIM
+#file = r'C:\workspace\hprfiles\FIMHPRs\lanmi_01.hpr' #sample FIM should have 305 depth grids
+
 
 hpr = HazusPackageRegion(hprFilePath=file, outputDir=r'C:\workspace')
 
@@ -202,6 +212,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
             #EXPORT Hazus Package Region TO Shapefile...
             try:
                 try:
+                    print('Writing results to shapefile.')
                     results.toShapefile(Path.joinpath(exportPath, 'results.shp'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'results.shp')
@@ -217,6 +228,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                     print(e)
                     
                 try:
+                    print('Writing Damaged facilities to shapefile.')
                     essentialFacilities.toShapefile(Path.joinpath(exportPath, 'damaged_facilities.shp'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'damaged_facilities.shp')
@@ -232,9 +244,10 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                     print(e)
                     
                 try:
-                    if not 'hazard' in dir():
-                        hazard = hpr.getHazardGeoDataFrame()
-                    hazard.toShapefile(Path.joinpath(exportPath, 'hazard.shp'))
+                    print('Writing hazard to shapefile.')
+                    if not 'hazardGDF' in dir():
+                        hazardGDF = hpr.getHazardGeoDataFrame()
+                    hazardGDF.toShapefile(Path.joinpath(exportPath, 'hazard.shp'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'hazard.shp')
                     filePathRel = str(filePath.relative_to(Path(hpr.outputDir)))
@@ -284,9 +297,9 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                     print(e)
                     
                 try:
-                    if not 'hazard' in dir():
-                        hazard = hpr.getHazardGeoDataFrame()
-                    hazard.toGeoJSON(Path.joinpath(exportPath, 'hazard.geojson'))
+                    if not 'hazardGDF' in dir():
+                        hazardGDF = hpr.getHazardGeoDataFrame()
+                    hazardGDF.toGeoJSON(Path.joinpath(exportPath, 'hazard.geojson'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'hazard.geojson')
                     filePathRel = str(filePath.relative_to(Path(hpr.outputDir)))
