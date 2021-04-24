@@ -51,7 +51,7 @@ class HazusPackageRegion():
         self.name = '' #'bk_' + self.dbName #also used in HazusPackageRegionDataFrame
         self.hazard = ''
         self.scenario = ''
-        self.returnPeriod = ''
+        self.returnPeriod = '' #this can sometimes have trailing spaces
         self.hazusPackageRegion = self.hprFilePath.stem #for HazusPackageRegionDataFrame
 
         self.hprComment = self.getHPRComment(self.hprFilePath)
@@ -1168,6 +1168,34 @@ class HazusPackageRegion():
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    def getFIMSelected_Rtn_Period(self):
+        """Queries the HPR database for the unzipped hpr path to scenario/returnperiod depth grid
+
+            Returns:
+                str: string -- should be a string value with no leading or trailing spaces
+
+        """
+        sql = """DECLARE @var1 VARCHAR(30);     
+
+                SELECT @var1 = '{sc}'; 
+
+                SELECT @var1 = [StudyCaseID]         
+                FROM [{s}].[dbo].[flStudyCase]      
+                WHERE [StudyCaseName] = @var1 ;   
+
+                SELECT [ParmValue]
+                FROM [{s}].[dbo].[flStudyCaseParms]
+                WHERE [StudyCaseID] = @var1 AND ParmKey = 'Selected_Rtn_Period'
+                """.format(s=self.name, sc=self.scenario)
+        try:
+            df = self.query(sql)
+            Selected_Rtn_Period = df['ParmValue'].iat[0] #the table should be a single cell
+            return Selected_Rtn_Period.strip() 
+        except Exception as e:
+            print("Unexpected error:", sys.exc_info()[0])
+            print(e)
+            raise
         
     def getHazardGeoDataFrame(self, round=True):
             """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
@@ -1177,6 +1205,13 @@ class HazusPackageRegion():
 
                 Returns:
                     hazardGDF: geopandas GeoDataFrame -- a geodataframe containing the spatial hazard data
+
+                Notes:
+                    EQ:
+                    FL: w001001.adf raster file
+                    FL FIMS: unzippedHPRNAME\SCENARIO\Riverine\Depth\rpd28 (file name structure?)
+                    HU:
+                    TS:
             """
             try:
                 hazard = self.hazard
@@ -1198,44 +1233,118 @@ class HazusPackageRegion():
                         gdf = self.query(sql)
                     hazardDict['Peak Ground Acceleration (g)'] = gdf
 
-                #FLOOD
-##                print(hazard) #debug
+##                #FLOOD from NEWDEV branch
+##                if hazard == 'flood':
+##                    base_path = Path.joinpath(self.tempDir, Path(self.scenario)) #{tempdir/{scenarioname} #needs testing
+##                    print(base_path)
+##                    for root, dirs, files in os.walk(base_path, topdown=False):
+##                        for name in files:
+##                            full_path = os.path.join(root, name)
+##                            if full_path.endswith('w001001.adf') and ('rpd' in full_path or 'mix0' in full_path ) and (self.scenario in full_path.split('\\')):
+##                                print('a match:', full_path)
+##                                try:
+##                                    raster = rio.open(full_path)
+##                                    affine = raster.meta.get('transform')
+##                                    crs = raster.meta.get('crs')
+##                                    band = raster.read(1)
+##                                    band = np.where(band < 0, 0, band)
+##                                    if round:
+##                                        band = np.rint(band)
+##
+##                                    geoms = []
+##                                    for geometry, value in features.shapes(band, transform=affine):
+##                                        try:
+##                                            if value >= 1:
+##                                                result = {'properties': {
+##                                                    'PARAMVALUE': value}, 'geometry': geometry}
+##                                                geoms.append(result)
+##                                        except:
+##                                            pass
+##                                    # breakpoint()
+##                                    gdf = gpd.GeoDataFrame.from_features(geoms)
+##                                    gdf.crs = crs
+##                                    gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+##                                    hazardDict[self.scenario] = gdf
+##                                except:
+##                                    print('ERROR - getHazardGeoDataFrame')
+##                                    pass
+                                
+                #FLOOD from TEST branch !!!UNTESTED!!!
                 if hazard == 'flood':
-                    base_path = Path.joinpath(self.tempDir, Path(self.scenario)) #{tempdir/{scenarioname} #needs testing
-                    print(base_path)
-                    for root, dirs, files in os.walk(base_path, topdown=False):
-                        for name in files:
-                            full_path = os.path.join(root, name)
-                            if full_path.endswith('w001001.adf') and ('rpd' in full_path or 'mix0' in full_path ) and (self.scenario in full_path.split('\\')):
-                                print('a match:', full_path)
-                                try:
-                                    raster = rio.open(full_path)
-                                    affine = raster.meta.get('transform')
-                                    crs = raster.meta.get('crs')
-                                    band = raster.read(1)
-                                    band = np.where(band < 0, 0, band)
-                                    if round:
-                                        band = np.rint(band)
+                    # this is a list instead of a dictionary, because some of the 'name' properties are the same
+                    pathHPRScenario = Path.joinpath(self.tempDir,self.scenario)
+                    hazardPathDicts = [
+                        #SLOSH MOM's TBD
+                        #Deterministic Riverine
+                        {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/mix0/w001001.adf')},
+                        #Deterministic Coastal
+                        {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/mix0/w001001.adf')},
+                        #Probabilistic Riverine 5-year
+                        {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd5/w001001.adf')},
+                        #Probabilistic Riverine 10-year
+                        {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd10/w001001.adf')},
+                        #Probabilistic Riverine 25-year
+                        {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd25/w001001.adf')},
+                        #Probabilistic Riverine 50-year
+                        {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd50/w001001.adf')},
+                        #Probabilistic Riverine 100-year
+                        {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd100/w001001.adf')},
+                        #Probabilistic Riverine 500-year
+                        {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd500/w001001.adf')},
+                        #Probabilistic Coastal 5-year
+                        {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd5/w001001.adf')},
+                        #Probabilistic Coastal 10-year
+                        {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd10/w001001.adf')},
+                        #Probabilistic Coastal 25-year
+                        {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd25/w001001.adf')},
+                        #Probabilistic Coastal 50-year
+                        {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd50/w001001.adf')},
+                        #Probabilistic Coastal 100-year
+                        {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd100/w001001.adf')},
+                        #Probabilistic Coastal 500-year
+                        {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd500/w001001.adf')}
+                    ]
 
-                                    geoms = []
-                                    for geometry, value in features.shapes(band, transform=affine):
-                                        try:
-                                            if value >= 1:
-                                                result = {'properties': {
-                                                    'PARAMVALUE': value}, 'geometry': geometry}
-                                                geoms.append(result)
-                                        except:
-                                            pass
-                                    # breakpoint()
-                                    gdf = gpd.GeoDataFrame.from_features(geoms)
-                                    gdf.crs = crs
-                                    gdf.geometry = gdf.geometry.to_crs(epsg=4326)
-                                    hazardDict[self.scenario] = gdf
-                                except:
-                                    print('ERROR - getHazardGeoDataFrame')
-                                    pass
-##                            else: #debug
-##                                print('getHazardGeoDataFrame: flood, no match')
+                    #FIM Flood Inundation Mapping; Can be 1 or many
+                    #unzippedHPRname/scenarioname/Riverine/Depth/returnperiodname(rpd{X}))/w001001.adf
+                    #i.e. nora_temp\nora_08\Riverine\Depth\rpd8\w001001.adf
+                    Selected_Rtn_Period = self.getFIMSelected_Rtn_Period()
+                    Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
+                                               'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
+                    print(Selected_Rtn_PeriodDict) #debug
+                    hazardPathDicts.append(Selected_Rtn_PeriodDict)
+                    
+                    for idx in range(len(hazardPathDicts)):
+                        if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod.strip() or self.returnPeriod == 'Mix0':
+                            print('match', hazardPathDicts[idx]['returnPeriod'], self.returnPeriod, self.returnPeriod.strip())
+                            try:
+                                raster = rio.open(hazardPathDicts[idx]['path'])
+                                affine = raster.meta.get('transform')
+                                crs = raster.meta.get('crs')
+                                band = raster.read(1)
+                                band = np.where(band < 0, 0, band)
+                                if round:
+                                    band = np.rint(band)
+
+                                geoms = []
+                                for geometry, value in features.shapes(band, transform=affine):
+                                    try:
+                                        if value >= 1:
+                                            result = {'properties': {
+                                                'PARAMVALUE': value}, 'geometry': geometry}
+                                        geoms.append(result)
+                                    except:
+                                        pass
+                                gdf = gpd.GeoDataFrame.from_features(geoms)
+                                gdf.crs = crs
+                                gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+                                hazardDict[hazardPathDicts[idx]['name']] = gdf
+                            except Exception as e:
+                                print('Exception hazardPathDicts')
+                                print(e)
+                                pass
+
+                                
                 #HURRICANE        
                 if hazard == 'hurricane':
                     try:
@@ -1332,7 +1441,7 @@ class HazusPackageRegion():
                 print(sdf.title)
                 return sdf
             except Exception as e:
-                print("Unexpected error:", sys.exc_info()[0])
+                print("Unexpected error getHazardGeoDataFrame:", sys.exc_info()[0])
                 print(e)
                 raise
 

@@ -20,10 +20,13 @@ print()
 
 #CREATE HazusPackageRegion OBJECT...
 #file = r'C:\workspace\hprfiles\NorCal-BayArea_SanAndreasM7-8.hpr' #EQ
-file = r'C:\workspace\hprfiles\banMO.hpr' #Flood FIM
+#file = r'C:\workspace\hprfiles\banMO.hpr' #Flood FIM
+
 #file = r'C:\workspace\hprfiles\FIMHPRs\LChamNYVT_1.hpr' #sample FIM, largest size, 6 returnperiods?
 #file = r'C:\workspace\hprfiles\FIMHPRs\nora.hpr' #sample FIM
 #file = r'C:\workspace\hprfiles\FIMHPRs\lanmi_01.hpr' #sample FIM should have 305 depth grids
+#file = r'C:\workspace\hprfiles\FIMHPRs\vlypark.hpr' #Sample FIM
+file = r'C:\workspace\hprfiles\FIMHPRs\cfwgoshOR.hpr' #Sample FIM
 
 
 hpr = HazusPackageRegion(hprFilePath=file, outputDir=r'C:\workspace')
@@ -73,8 +76,7 @@ hllMetadataScenario = pd.DataFrame(columns=['uuid',
                                             'location',
                                             'geom'])
 
-hllMetadataDownload = pd.DataFrame(columns=['uuid',
-                                            'category',
+hllMetadataDownload = pd.DataFrame(columns=['category',
                                             'subcategory',
                                             'name',
                                             'icon',
@@ -246,8 +248,9 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                     
                 try:
                     print('Writing hazard to shapefile.')
-                    if not 'hazardGDF' in dir():
-                        hazardGDF = hpr.getHazardGeoDataFrame()
+##                    if not 'hazardGDF' in dir():
+##                        hazardGDF = hpr.getHazardGeoDataFrame()
+                    hazardGDF = hpr.getHazardGeoDataFrame()
                     hazardGDF.toShapefile(Path.joinpath(exportPath, 'hazard.shp'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'hazard.shp')
@@ -301,8 +304,9 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                     
                 try:
                     print('Writing Hazard to geojson...')
-                    if not 'hazardGDF' in dir():
-                        hazardGDF = hpr.getHazardGeoDataFrame()
+##                    if not 'hazardGDF' in dir():
+##                        hazardGDF = hpr.getHazardGeoDataFrame()
+                    hazardGDF = hpr.getHazardGeoDataFrame()
                     hazardGDF.toGeoJSON(Path.joinpath(exportPath, 'hazard.geojson'))
                     #ADD ROW TO hllMetadataDownload TABLE...
                     filePath = Path.joinpath(exportPath, 'hazard.geojson')
@@ -318,7 +322,7 @@ for hazard in hpr.HazardsScenariosReturnPeriods:
                     print(e)
 
                 try:
-                    print('Econloss Simplified Convex Hull HLL to geojson.')
+                    print('Writing Econloss Simplified Convex Hull HLL to geojson...')
                     econloss = hpr.getEconomicLoss()
                     if len(econloss.loc[econloss['EconLoss'] > 0]) > 0:
                         econloss.toHLLGeoJSON(Path.joinpath(exportPath, 'econloss_simpconvexHLL.geojson'))
@@ -371,10 +375,10 @@ hllMetadataDownloadPath = str(Path.joinpath(Path(outputPath), "Download.csv"))
 hllMetadataDownload.to_csv(hllMetadataDownloadPath, index=False)
 
 #DROP SQL SERVER HPR DATABASE...
-try:
-    hpr.dropDB()
-except Exception as e:
-    print(e)
+##try:
+##    hpr.dropDB()
+##except Exception as e:
+##    print(e)
 
 #DELETE UNZIPPED HPR FOLDER...
 ##try:
