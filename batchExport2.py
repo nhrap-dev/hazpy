@@ -301,6 +301,25 @@ def main(hprFile, outputDir):
     ##                    print('Writing Hazard not available to export to geojson...')
     ##                    print(e)
 
+                    #if hazard == 'flood':
+                    try:
+                        print('Writing Flood Hazard BoundaryPoly to shapefile...')
+                        hpr.getFloodBoundaryPolyName('R')
+                        hpr.exportFloodHazardPolyToShapefile(Path.joinpath(exportPath, 'hazardPoly.shp'))
+                        #ADD ROW TO hllMetadataDownload TABLE...
+                        filePath = Path.joinpath(exportPath, 'hazardPoly.shp')
+                        filePathRel = str(filePath.relative_to(Path(hpr.outputDir)))
+                        hllMetadataDownload = hllMetadataDownload.append({'category':returnPeriod,
+                                                                          'subcategory':'Results',
+                                                                          'name':'hazardPoly.shp',
+                                                                          'icon':'spatial',
+                                                                          'file':filePathRel,
+                                                                          'analysis':scenarioUUID}, ignore_index=True)
+                    except Exception as e:
+                        print('Writing Hazard not available to export to shapefile...')
+                        print(e)
+                        
+
                     try:
                         print('Writing ImpactArea to geojson...')
                         econloss = hpr.getEconomicLoss()

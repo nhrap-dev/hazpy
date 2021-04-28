@@ -22,6 +22,10 @@ import rasterio as rio
 from rasterio import features
 import numpy as np
 
+import subprocess
+from osgeo import ogr
+ogr.UseExceptions()
+
 from .hazuspackageregiondataframe import HazusPackageRegionDataFrame #might be able to switch back to RegionDataFrame, since adding name property
 from .report import Report
 
@@ -1169,6 +1173,67 @@ class HazusPackageRegion():
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
+    def getFloodBoundaryPolyName(self, hazardType='R'):
+        """Obtains the name of the HazardPoly in an unzipped HPR's scenario folder.
+
+        Inputs:
+            hazardType: string -- the hazard type R for Riverine, C for Coastal.
+            
+        Returns:
+            BoundaryPolyName: string -- the name to the HazardPoly featureclass in the scenario .mdb
+
+        Notes:
+            ESRI Personal Geodatabase .mdb path differs based on hazard type Riverine|Coastal.
+            Unsure how a dual Riverine and Coastal SR is setup, more testing needed.
+            Sample Path (HPR/Scenario/hazardtype/CaseOutput.mdb/BoundaryPoly*):
+                'nora_temp\nora_01\Riverine\CaseOutput.mdb' with 'BoundaryPolyRP101'.
+        """
+        if hazardType.upper() == 'R':
+            hazardType = 'Riverine'
+        if hazardType.upper() == 'C':
+            hazardType = 'Coastal'
+        self.floodMdbPath = str(Path.joinpath(self.tempDir, self.scenario, f'{hazardType}/CaseOutput.mdb'))
+        mdbPath = self.floodMdbPath
+        featsClassList = []
+        driver = ogr.GetDriverByName("PGeo") #for ESRI .mdb
+        
+        try:
+            gdb = driver.Open(mdbPath, 0)
+        except Exception as e:
+            print(e)
+            sys.exit()
+        
+        for featsClass_idx in range(gdb.GetLayerCount()):
+            featsClass = gdb.GetLayerByIndex(featsClass_idx)
+            featsClassList.append(featsClass.GetName())
+
+        del gdb #cleanup
+            
+        for featsClass in featsClassList:
+            if 'boundarypoly' in featsClass.lower():
+                self.floodBoundaryPolygonName = featsClass
+                BoundaryPolyName = featsClass
+                return BoundaryPolyName        
+            
+
+    def exportFloodHazardPolyToShapefile(self, outputShapefile):
+        """
+        Inputs:
+            outputShapefile: str -- name of the output shapefile and path.
+
+        Notes:
+            I.E. \nora_temp\nora_01\Riverine\CaseOutput.mdb or \nora_temp\nora_01\Coastal\CaseOutput.mdb ?
+            I.E. BoundaryPolyRP101 but look for BoundaryPoly* as there should be one but the suffix may be different
+        """
+        try:
+            mdbPath = self.floodMdbPath #r'C:\workspace\nora_temp\nora_01\Riverine\CaseOutput.mdb'
+            boundaryPoly = self.floodBoundaryPolygonName
+            command = f'ogr2ogr -f "ESRI Shapefile" "{outputShapefile}" "{mdbPath}" {boundaryPoly}'
+            subprocess.check_call(command)
+        except Exception as e:
+            print(e)
+        
+        
     def getFIMSelected_Rtn_Period(self):
         """Queries the HPR database for the unzipped hpr path to scenario/returnperiod depth grid
 
@@ -1195,7 +1260,7 @@ class HazusPackageRegion():
         except Exception as e:
             print("Unexpected error:", sys.exc_info()[0])
             print(e)
-            raise
+            raise 
         
     def getHazardGeoDataFrame(self, round=True):
             """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
@@ -1208,7 +1273,7 @@ class HazusPackageRegion():
 
                 Notes:
                     EQ:
-                    FL: w001001.adf raster file
+                    FL: w001001.adf raster file (Don't want depth grid, want hazard outline poly)
                     FL FIMS: unzippedHPRNAME\SCENARIO\Riverine\Depth\rpd28 (file name structure?)
                     HU:
                     TS:
@@ -1269,7 +1334,7 @@ class HazusPackageRegion():
 ##                                    print('ERROR - getHazardGeoDataFrame')
 ##                                    pass
                                 
-                #FLOOD from TEST branch !!!UNTESTED!!!
+                #FLOOD from TEST branch
                 if hazard == 'flood':
                     # this is a list instead of a dictionary, because some of the 'name' properties are the same
                     pathHPRScenario = Path.joinpath(self.tempDir,self.scenario)
@@ -1312,8 +1377,9 @@ class HazusPackageRegion():
                     Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
                                                'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
                     print(Selected_Rtn_PeriodDict) #debug
-                    hazardPathDicts.append(Selected_Rtn_PeriodDict)
+                    hazardPathDicts.append(Selected_Rtn_PeriodDict)               
                     
+
                     for idx in range(len(hazardPathDicts)):
                         if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod.strip() or self.returnPeriod == 'Mix0':
                             print('match', hazardPathDicts[idx]['returnPeriod'], self.returnPeriod, self.returnPeriod.strip())
