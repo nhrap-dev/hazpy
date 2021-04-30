@@ -4,7 +4,7 @@ Fit for Flood FIMS, will need to adjust for the other perils EQ, HU, TS.
 """
 
 from hazpy.legacy import HazusPackageRegion
-from hazpy.legacy import reports
+##from hazpy.legacy import reports
 from pathlib import Path
 import os
 import pandas as pd
@@ -344,23 +344,23 @@ def exportHPR(hprFile, outputDir):
                     print('Hazard not available to export to geojson.')
                     
                 #EXPORT Hazus Package Region TO PDF USING REPORT MODULE...
-                try:
-                    ##hpr.report = Report(hpr.name, '', hpr.hazard) #inits with self.hazard
-                    reportTitle = hpr.text_reportTitle.get("1.0", 'end-1c')
-                    if len(reportTitle) > 0:
-                        hpr.report.title = reportTitle
-                    reportSubtitle = text_reportSubtitle.get("1.0", 'end-1c')
-                    if len(reportSubtitle) > 0:
-                        hpr.report.subtitle = reportSubtitle
-                    ##hpr.createReport() #added
-                    hpr.report.save(Path.joinpath(exportPath, 'report_summary.pdf'), build=True)
-                except Exception as e:
-                    print(u"Unexpected error exporting the PDF (report): ")
-                    print(e)
+##                try:
+##                    ##hpr.report = Report(hpr.name, '', hpr.hazard) #inits with self.hazard
+##                    reportTitle = hpr.text_reportTitle.get("1.0", 'end-1c')
+##                    if len(reportTitle) > 0:
+##                        hpr.report.title = reportTitle
+##                    reportSubtitle = text_reportSubtitle.get("1.0", 'end-1c')
+##                    if len(reportSubtitle) > 0:
+##                        hpr.report.subtitle = reportSubtitle
+##                    ##hpr.createReport() #added
+##                    hpr.report.save(Path.joinpath(exportPath, 'report_summary.pdf'), build=True)
+##                except Exception as e:
+##                    print(u"Unexpected error exporting the PDF (report): ")
+##                    print(e)
 
                 #EXPORT Hazus Package Region TO PDF USING REPORTS MODULE...
                     #no pdfrw library, need to add to environment
-                try:
+##                try:
                     
                 except Exception as e:
                     print(u"Unexpected error exporting the PDF (reports): ")
