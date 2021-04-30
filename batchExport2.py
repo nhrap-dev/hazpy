@@ -4,12 +4,13 @@ Fit for Flood FIMS, will need to adjust for the other perils EQ, HU, TS.
 """
 
 from hazpy.legacy import HazusPackageRegion
+from hazpy.legacy import reports
 from pathlib import Path
 import os
 import pandas as pd
 import uuid
 
-def main(hprFile, outputDir):
+def exportHPR(hprFile, outputDir):
     """
     """
     #hpr = HazusPackageRegion(hprFilePath=file, outputDir=r'C:\workspace')
@@ -343,19 +344,27 @@ def main(hprFile, outputDir):
                     print('Hazard not available to export to geojson.')
                     
                 #EXPORT Hazus Package Region TO PDF USING REPORT MODULE...
-    ##            try:
-    ##                ##hpr.report = Report(hpr.name, '', hpr.hazard) #inits with self.hazard
-    ####                reportTitle = hpr.text_reportTitle.get("1.0", 'end-1c')
-    ####                if len(reportTitle) > 0:
-    ####                    hpr.report.title = reportTitle
-    ####                reportSubtitle = text_reportSubtitle.get("1.0", 'end-1c')
-    ####                if len(reportSubtitle) > 0:
-    ####                    hpr.report.subtitle = reportSubtitle
-    ##                ##hpr.createReport()
-    ##                ##hpr.report.save(Path.joinpath(exportPath, 'report_summary.pdf'), build=True)
-    ##            except Exception as e:
-    ##                print(u"Unexpected error exporting the PDF: ")
-    ##                print(e)
+                try:
+                    ##hpr.report = Report(hpr.name, '', hpr.hazard) #inits with self.hazard
+                    reportTitle = hpr.text_reportTitle.get("1.0", 'end-1c')
+                    if len(reportTitle) > 0:
+                        hpr.report.title = reportTitle
+                    reportSubtitle = text_reportSubtitle.get("1.0", 'end-1c')
+                    if len(reportSubtitle) > 0:
+                        hpr.report.subtitle = reportSubtitle
+                    ##hpr.createReport() #added
+                    hpr.report.save(Path.joinpath(exportPath, 'report_summary.pdf'), build=True)
+                except Exception as e:
+                    print(u"Unexpected error exporting the PDF (report): ")
+                    print(e)
+
+                #EXPORT Hazus Package Region TO PDF USING REPORTS MODULE...
+                    #no pdfrw library, need to add to environment
+                try:
+                    
+                except Exception as e:
+                    print(u"Unexpected error exporting the PDF (reports): ")
+                    print(e)
 
             print()
             print()
@@ -384,23 +393,26 @@ def main(hprFile, outputDir):
     except Exception as e:
         print(e)
 
-
-#CREATE HazusPackageRegion OBJECT...
-#file = r'C:\workspace\hprfiles\NorCal-BayArea_SanAndreasM7-8.hpr' #EQ
-#file = r'C:\workspace\hprfiles\banMO.hpr' #Flood FIM
-#file = r'C:\workspace\hprfiles\FIMHPRs\LChamNYVT_1.hpr' #sample FIM, largest size, 6 returnperiods?
-#file = r'C:\workspace\hprfiles\FIMHPRs\nora.hpr' #sample FIM
-#file = r'C:\workspace\hprfiles\FIMHPRs\lanmi_01.hpr' #sample FIM should have 305 depth grids
-#file = r'C:\workspace\hprfiles\FIMHPRs\vlypark.hpr' #Sample FIM
-#file = r'C:\workspace\hprfiles\FIMHPRs\cfwgoshOR.hpr' #Sample FIM
-#main(file, outputDir=r'C:\workspace')
-
-#ITERATE OVER THE HPR FILES/???EVENT???...
-hprDir = r'C:\workspace\SprintReviewDemo'
-fileExt = r'*.hpr'
-print(f'HPR List from {hprDir}...')
-hprList = list(Path(hprDir).glob(fileExt))
-for hpr in hprList:
-    print(hpr)
-    main(hpr, r'C:\workspace\SprintReviewDemo')
-print()
+        
+if __name__ == '__main__':
+    #CREATE HazusPackageRegion OBJECT...
+    #file = r'C:\workspace\hprfiles\NorCal-BayArea_SanAndreasM7-8.hpr' #EQ
+    #file = r'C:\workspace\hprfiles\banMO.hpr' #Flood FIM
+    #file = r'C:\workspace\hprfiles\FIMHPRs\LChamNYVT_1.hpr' #sample FIM, largest size, 6 returnperiods?
+    #file = r'C:\workspace\hprfiles\FIMHPRs\nora.hpr' #sample FIM
+    #file = r'C:\workspace\hprfiles\FIMHPRs\lanmi_01.hpr' #sample FIM should have 305 depth grids
+    #file = r'C:\workspace\hprfiles\FIMHPRs\vlypark.hpr' #Sample FIM
+    #file = r'C:\workspace\hprfiles\FIMHPRs\cfwgoshOR.hpr' #Sample FIM
+    #exportHPR(file, outputDir=r'C:\workspace')
+    
+    #ITERATE OVER THE HPRs...
+    hprDir = r'C:\workspace\SprintReviewDemo'
+    fileExt = r'*.hpr'
+    print(f'HPR List from {hprDir}...')
+    hprList = list(Path(hprDir).glob(fileExt))
+    for hpr in hprList:
+        print(hpr)
+    print(f'Processing HPRs...')
+    for hpr in hprList:
+        exportHPR(hpr, r'C:\workspace\SprintReviewDemo')
+    print()
