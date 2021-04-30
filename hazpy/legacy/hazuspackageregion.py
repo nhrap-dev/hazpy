@@ -368,7 +368,7 @@ class HazusPackageRegion():
 
         
         
-    #GET HAZARD, SCENARIO, RETURN PERIOD DATA
+    #GET HAZARD, HAZARDTYPE, SCENARIO, RETURN PERIOD DATA
     def query(self, sql):
         """Performs a SQL query on the Hazus SQL Server database
 
@@ -409,6 +409,42 @@ class HazusPackageRegion():
         except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
+
+    def getAnalysisType(self):
+        """Historical, Deterministic, Probabalistic. Deterministic includes historical and everything that is not probabilistic
+
+            Notes:
+                EQ:
+                FL: Whenever Return Period is a number = probabalistic; when its mix0 its deterministic
+                HU:
+                TS:
+        """
+        pass
+
+    def getFloodHazardType(self):
+        """Not currently in use
+
+            Returns:
+                str: string --
+
+            Notes:
+                {s}.[dbo].[flHazType] has integer to string conversion of Hazard_Type.
+        """
+        sql = """SELECT [ParmValue]
+                  FROM {s}.[dbo].[flStudyCaseParms]
+                  WHERE [StudyCaseID] = 0 AND ParmKey = 'Hazard_Type'
+                """.format(s=self.name)
+        try:
+            df = self.query(sql)
+            Hazard_Type = df['ParmValue'].iat[0] #the table should be a single cell
+            if Hazard_Type == 1:
+                return 'Riverine'
+            if Hazard_Type != 1:
+                return 'Coastal'
+        except Exception as e:
+            print("Unexpected error:", sys.exc_info()[0])
+            print(e)
+            raise 
         
     def getScenarios(self, hazard):
         """
