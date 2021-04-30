@@ -72,7 +72,6 @@ def main(hprFile, outputDir):
 
 
     #ITERATE OVER THE HAZARD, SCENARIO, RETURNPERIOD AVAIALABLE COMBINATIONS...
-    #HAZARDS/???EVENT???
     for hazard in hpr.HazardsScenariosReturnPeriods:
         print(hazard['Hazard'])
 
@@ -92,11 +91,11 @@ def main(hprFile, outputDir):
             scenarioMETA = str({"HazusVersion":f"{hpr.HazusVersion}"}).replace("'",'"') #needs to be double quotes
             hllMetadataScenario = hllMetadataScenario.append({'uuid':scenarioUUID,
                                                               'name':scenario['ScenarioName'],
-                                                              'hazard':hazard['Hazard'],
-                                                              'analysisType':'FIX ME',
-                                                              'date':'FIX ME',
-                                                              'source':'FIX ME: USER INPUT NEEDED',
-                                                              'modifiedInventory':'FIX ME',
+                                                              'hazard':hazard['Hazard'], #flood, hurricane, earthquake, tsunami, tornado
+                                                              'analysisType':'FIX ME', #historic, deterministic, probabilistic
+                                                              'date':'FIX ME', #YYYY-MM-DD
+                                                              'source':'FIX ME: USER INPUT NEEDED', #Max100 chars
+                                                              'modifiedInventory':'FIX ME', #true/false
                                                               'event':hazardUUID,
                                                               'meta':scenarioMETA}, ignore_index=True)
             #RETURNPERIODS/DOWNLOAD
@@ -303,15 +302,15 @@ def main(hprFile, outputDir):
 
                     #if hazard == 'flood':
                     try:
-                        print('Writing Flood Hazard BoundaryPoly to shapefile...')
+                        print('Writing Flood Hazard Boundary Polygon to shapefile...')
                         hpr.getFloodBoundaryPolyName('R')
-                        hpr.exportFloodHazardPolyToShapefile(Path.joinpath(exportPath, 'hazardPoly.shp'))
+                        hpr.exportFloodHazardPolyToShapefile(Path.joinpath(exportPath, 'hazardBoundaryPoly.shp'))
                         #ADD ROW TO hllMetadataDownload TABLE...
-                        filePath = Path.joinpath(exportPath, 'hazardPoly.shp')
+                        filePath = Path.joinpath(exportPath, 'hazardBoundaryPoly.shp')
                         filePathRel = str(filePath.relative_to(Path(hpr.outputDir)))
                         hllMetadataDownload = hllMetadataDownload.append({'category':returnPeriod,
                                                                           'subcategory':'Results',
-                                                                          'name':'hazardPoly.shp',
+                                                                          'name':'hazardBoundaryPoly.shp',
                                                                           'icon':'spatial',
                                                                           'file':filePathRel,
                                                                           'analysis':scenarioUUID}, ignore_index=True)
