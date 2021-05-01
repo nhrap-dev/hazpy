@@ -27,7 +27,7 @@ from osgeo import ogr
 ogr.UseExceptions()
 
 from .hazuspackageregiondataframe import HazusPackageRegionDataFrame #might be able to switch back to RegionDataFrame, since adding name property
-from .report import Report
+#from .report import Report
 
 
 
