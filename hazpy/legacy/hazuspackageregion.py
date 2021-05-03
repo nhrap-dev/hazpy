@@ -1445,13 +1445,13 @@ class HazusPackageRegion():
                 Selected_Rtn_Period = self.getFIMSelected_Rtn_Period()
                 Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
                                            'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
-                print(Selected_Rtn_PeriodDict) #debug
+##                print(Selected_Rtn_PeriodDict) #debug
                 hazardPathDicts.append(Selected_Rtn_PeriodDict)               
                 
 
                 for idx in range(len(hazardPathDicts)):
                     if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod.strip() or self.returnPeriod == 'Mix0':
-                        print('match', hazardPathDicts[idx]['returnPeriod'], self.returnPeriod, self.returnPeriod.strip())
+##                        print('match', hazardPathDicts[idx]['returnPeriod'], self.returnPeriod, self.returnPeriod.strip()) #debug
                         try:
                             raster = rio.open(hazardPathDicts[idx]['path'])
                             affine = raster.meta.get('transform')
@@ -1562,18 +1562,18 @@ class HazusPackageRegion():
                 gdf.geometry = gdf.geometry.to_crs(epsg=4326)
                 hazardDict['Water Depth (ft)'] = gdf
 
-            keys = list(hazardDict.keys()) #debug
-            print(keys)
+##            keys = list(hazardDict.keys()) #debug
+##            print(keys) #debug
             
             if len(hazardDict.keys()) > 1:
-                print('>1')
+##                print('>1') #debug
                 gdf = gpd.GeoDataFrame(pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
             else:
-                print('<=1')
+##                print('<=1') #debug
                 gdf = hazardDict[keys[0]]
             sdf = HazusPackageRegionDataFrame(self, gdf)
             sdf.title = keys[0]
-            print(sdf.title)
+##            print(sdf.title) #debug
             return sdf
         except Exception as e:
             print("Unexpected error getHazardGeoDataFrame:", sys.exc_info()[0])
