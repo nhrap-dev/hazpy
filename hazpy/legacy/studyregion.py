@@ -6,7 +6,6 @@ from shapely.wkt import loads
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import urllib
-import zipfile
 # TODO check if all geojsons are oriented correctly; if not, apply orient
 # try:
 #     from shapely.ops import orient  # version >=1.7a2
@@ -23,53 +22,6 @@ import numpy as np
 from .studyregiondataframe import StudyRegionDataFrame
 from .report import Report
 
-
-class HazusPackageRegion():
-    """ Creates an HazusPackageRegion object from an Hazus Package Region (hpr) file and has functions to batch export.
-        Set the hazard,scenario,returnperiod to export?
-
-        Keyword Arguments:
-            hprFilePath: str -- the path of the .hpr file
-
-        Notes: Should create a directory for each Hazard/Studycase|Scenario/ScenarioType/ReturnPeriod for exported products.
-                Also should create a main spreadsheet metadata logging what it created and any issues/errors.
-    """
-    def __init__(self, hprFilePath):
-        self.hprFilePath = hprFilePath
-        self.conn = self.createConnection()
-
-        #create variables that can be iterated over
-        self.hazards = []
-        self.floodStudyCases = []
-        self.floodStudyCaseRiverineReturnPeriods = []
-        self.floodStudyCaseCoastalPeriods = []
-        self.floodStudyCaseRiverineCoastalPeriods = []
-
-    #hprfile info/hazards
-    #restore hpr file to sql server
-    #detach hpr file from sql server
-    #delete unzipped folder
-
-    #earthquakeProbalisticReturnPeriods 8return periods
-    #earthquakeProbalisticReturnPeriod
-    #earthquakeDeterministic
-    #earthquakeAAL?
-        
-    #floodStudyCases
-    #floodStudyCaseRiverineReturnPeriods
-    #floodStudyCaseRiverineReturnPeriod
-    #floodStudyCaseCoastalPeriods
-    #floodStudyCaseCoastalPeriod
-    #floodStudyCaseRiverineCoastalPeriods
-    #floodStudyCaseRiverineCoastalPeriod
-    #floodStudyCaseSurge
-    #floodAAL?
-
-    #hurricaneProbalistic 7return periods
-    #hurricaneDeterministic
-    #hurricaneAAL?
-
-    #tsunami
 
 class StudyRegion():
     """ Creates a study region object using an existing study region in the local Hazus database
