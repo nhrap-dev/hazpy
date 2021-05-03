@@ -27,12 +27,10 @@ from osgeo import ogr
 ogr.UseExceptions()
 
 from .hazuspackageregiondataframe import HazusPackageRegionDataFrame #might be able to switch back to RegionDataFrame, since adding name property
-#from .report import Report
-
 
 
 class HazusPackageRegion():
-    """ Creates an HazusPackageRegion object from an Hazus Package Region (hpr) file and has functions to batch export.
+    """Creates an HazusPackageRegion object from an Hazus Package Region (hpr) file and has functions to batch export.
         1 Must run function to restore database before exporting
         2 Must run exports functions
         3 Must run cleanup functions
@@ -40,13 +38,20 @@ class HazusPackageRegion():
 
         Keyword Arguments:
             hprFilePath: str -- the path of the .hpr file
+            outputDir: str -- the path that the hpr file will be unzipped to
 
         Notes: Should create a directory for each Hazard/Studycase|Scenario/ScenarioType/ReturnPeriod for exported products.
                 Also should create a main spreadsheet metadata logging what it created and any issues/errors.
-
     """
-    def __init__(self, hprFilePath, outputDir):
-        """Blank properties are filled in via functions.
+    def __init__(self, hprFilePath, outputDir): #before
+##    def __init__(self, *args, **kwargs): #after
+##        super().__init__(*args, **kwargs) #after
+        """Initializes the HPR object based on inputs.
+
+        Notes: Blank properties are filled in via functions.
+            The hazard, scenario and returnperiod control what data is exported.
+            These get changed while iterating over hazards, scenarios and returnperiods.
+
         """
         self.hprFilePath = Path(hprFilePath)
         self.outputDir = Path.joinpath(Path(outputDir), self.hprFilePath.stem)
@@ -80,7 +85,7 @@ class HazusPackageRegion():
             hprPath: str -- a string of the full directory path and hpr filename.
 
         Returns:
-            zComment: list 
+            zComment: list -- a python list of HPR attributes
     
         Notes: 
         """
@@ -91,10 +96,10 @@ class HazusPackageRegion():
     def getHPRHazusVersion(self, hprComment):
         """
         Keyword Arguments:
-            hprComment: list 
+            hprComment: list -- a python list of HPR attributes
 
         Returns:
-            hprHazusVersion: string
+            hprHazusVersion: string -- the Hazus version that created the HPR
             
         Notes:  Export is only going to support HPR as far back as Hazus 2.0.
            Version|RegionName|.bk|Earthquake|Flood|Hurricane
@@ -136,11 +141,12 @@ class HazusPackageRegion():
         """Compare comments value to known Hazus version value to get common Hazus version.
 
         Keyword Arguments:
-            hprComment: list 
+            hprComment: list -- a python list of HPR attributes
+            returnType: string -- list|dict determines the return data type
 
         Returns:
-            hazardsList: list
-            hazardsDict: dictionary
+            hazardsList: list -- a list of the HPR's Hazard types
+            hazardsDict: dictionary -- a dict of the HPR's Hazard types
 
         Notes:
             ['earthquake','flood','hurricane','tsunami']
@@ -173,8 +179,11 @@ class HazusPackageRegion():
 
     #RESTORE .HPR TO HAZUS SQL SERVER
     def unzipHPR(self, hprPath, tempDir):
-        """Unzip to temp folder.
+        """Unzip HPR to temp folder.
 
+            Keyword Arguments:
+                hprPath: str -- the path to the HPR file
+                tempDir: str -- the output path to unzip the HPR file to
 
         """
         print(f'Unzipping {hprPath} to {tempDir}...')
@@ -184,8 +193,11 @@ class HazusPackageRegion():
         print()
 
     def getBKFilePath(self, fileDir):
-        """
+        """Set the bkFilePath attribute.
 
+            Keyword Arguments:
+                fileDir: str -- the unzipped hpr directory
+                
         Note: there should be only one bkfile.
         """
         fileExt = r'*.bk'
@@ -208,7 +220,17 @@ class HazusPackageRegion():
             print(f'no bkfile in {fileDir}')
         
     def getFileListHeadersFromDBFile(self, bkFilePath, cursor):
-        """
+        """Create a standard FileListHeaders as a temporary table
+            to determine the name of the .mdf data and log files to be
+            recovered in sql server.
+
+            Keyword Arguments:
+                bkFilePath: str -- the unzipped hpr directory
+                cursor: pyodbc connection cursor -- the sql server connection cursor object
+                
+            Returns:
+                tuple: tuple -- LogicalName_data and LogicName_log fro bkfile
+
         """
         #Create temp table to hold .bk info...
         print(f'Creating and populating temporary table to hold {bkFilePath} FileListHeaders info...')
@@ -294,7 +316,16 @@ class HazusPackageRegion():
 
     def restoreSQLServerBKFile(self, dbName, dirPath, bkFilePath, LogicalName_data, LogicalName_log, cursor):
         """
+        Key Argument:
+            dbName: str -- the name of the bk file database name
+            dirPath: str -- the path where the bk .mdf files will be copied to (the unzipped hpr folder)
+            bkFilePath: str -- the path to the bk file
+            LogicalName_data: str -- the name of the bk files data .mdf file from FileListHeaders table
+            LogicalName_log: str -- the name of the bk files log .mdf file from FileListHeaders table
+            cursor: pydodb connection cursor -- cursor to perform the database restore
+
         Notes: Creates mdf and log files. Runs asynchronously. Database is not available via Hazus Study Regions.
+            Appends 'bk_' to attached database dbName.
         """
         self.conn = self.createConnection()
         print(f'Restoring database: {dbName} ...')
@@ -310,11 +341,7 @@ class HazusPackageRegion():
         """Use several base functions together to effectively attach an hpr file to sql server for access by export functions.
 
         Notes:
-            Attach:
-            CREATE DATABASE bk_test   
-            ON (FILENAME = 'C:\workspace\banMO_temp\FIMJacksonMO_data.mdf'),   
-            (FILENAME = 'C:\workspace\banMO_temp\FIMJacksonMO_log.mdf')   
-            FOR ATTACH;  
+
         """
         #UnzipHPR...
         self.unzipHPR(self.hprFilePath, self.tempDir)
@@ -334,21 +361,10 @@ class HazusPackageRegion():
 
 
     #CLEANUP
-##    def detachDB(self):
-##        """
-##        Notes: Detaching a db resets the .mdf and .log file permissions.
-##        """
-##        print(f'Detaching {self.dbName}...')
-##        ##self.cursor.execute(f"USE [master] ALTER DATABASE [{self.dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE")
-##        self.cursor.execute(f"USE [master] EXEC master.dbo.sp_detach_db @dbname = N'bk_{self.dbName}'")
-##        while self.cursor.nextset():
-##            pass
-##        print('...done')
-##        print()
-
     def dropDB(self):
-        """
-        Notes: dropping a db deletes the .mdf and .log files. This may leave a logfile?
+        """Using HazusPackageRegion attributes, drop the bk_* database that was restored from the bkfile in the hpr.
+
+        Notes:
         """
         print(f'Dropping {self.name}...')
         self.cursor.execute(f"USE MASTER ALTER DATABASE [{self.name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE DROP DATABASE IF EXISTS [{self.name}]")
@@ -356,7 +372,9 @@ class HazusPackageRegion():
         print()
         
     def deleteTempDir(self):
-        """
+        """Using HazusPackageRegion attributes, delete the unzipped HPR directory.
+
+        Notes:
         """
         print(f'Deleting temp folder:{self.tempDir}...')
         try:
@@ -387,7 +405,14 @@ class HazusPackageRegion():
             raise
         
     def getReturnPeriods(self, hazard, scenario):
-        """
+        """Create a list of return periods for a given hazard and scenario.
+
+            Keyword Arguments:
+                hazard: str -- the hazard type 'earthquake', 'flood', 'hurricane', 'tsunami'
+                scenario: str -- the scenario name to filter return periods by
+
+            Returns:
+                returnPeriods: list -- a list of return periods for a given hazard and scenario
         """
         try:
             if hazard == 'earthquake':
@@ -422,12 +447,13 @@ class HazusPackageRegion():
         pass
 
     def getFloodHazardType(self):
-        """Not currently in use
+        """Determine the Flood Hazard Type; Riverine or Coastal.
 
             Returns:
                 str: string --
 
             Notes:
+                Not currently in use.
                 {s}.[dbo].[flHazType] has integer to string conversion of Hazard_Type.
         """
         sql = """SELECT [ParmValue]
@@ -447,7 +473,14 @@ class HazusPackageRegion():
             raise 
         
     def getScenarios(self, hazard):
-        """
+        """Get a list of scenarios for a given hazard.
+
+        Arguments:
+            hazard: str -- the hazard type to filter scenarios on 'earthquake', 'hurricane', 'flood', 'tsunami'
+
+        Returns:
+            scenarios: list -- a list of scenarios for the given hazard
+        
         """
         try:
             if hazard == 'earthquake':
@@ -1299,40 +1332,40 @@ class HazusPackageRegion():
             raise 
         
     def getHazardGeoDataFrame(self, round=True):
-            """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
+        """ Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
 
-                Keyword Arguments:
-                    round: boolean -- if True, the hazard rasters will be rounded to the nearest integer (default: True)
+            Keyword Arguments:
+                round: boolean -- if True, the hazard rasters will be rounded to the nearest integer (default: True)
 
-                Returns:
-                    hazardGDF: geopandas GeoDataFrame -- a geodataframe containing the spatial hazard data
+            Returns:
+                hazardGDF: geopandas GeoDataFrame -- a geodataframe containing the spatial hazard data
 
-                Notes:
-                    EQ:
-                    FL: w001001.adf raster file (Don't want depth grid, want hazard outline poly)
-                    FL FIMS: unzippedHPRNAME\SCENARIO\Riverine\Depth\rpd28 (file name structure?)
-                    HU:
-                    TS:
-            """
-            try:
-                hazard = self.hazard
-                # the operator controls if hazard data includes zero values ('>=' does include; '>' doesn't include)
-                # TODO operator is only part of hurricane - build operator into other hazards
-                operator = '>='
-                hazardDict = {}
-                #EARTHQUAKE
-                if hazard == 'earthquake':
-                    try:
-                        path = Path.joinpath(self.tempdir, self.name,'shape/pga.shp') #needs testing
-                        gdf = gpd.read_file(path)
-                    except:
-                        sql = """SELECT a.tract, PARAMVALUE, geometry FROM
-                            (SELECT [Tract] as tract ,[PGA] as PARAMVALUE FROM {s}.[dbo].[eqTract]) a
-                            inner join
-                            (SELECT Tract as tract, Shape.STAsText() AS geometry FROM {s}.dbo.hzTract) b
-                            on a.tract = b.tract""".format(s=self.name)
-                        gdf = self.query(sql)
-                    hazardDict['Peak Ground Acceleration (g)'] = gdf
+            Notes:
+                EQ:
+                FL: w001001.adf raster file (Don't want depth grid, want hazard outline poly)
+                FL FIMS: unzippedHPRNAME\SCENARIO\Riverine\Depth\rpd28 (file name structure?)
+                HU:
+                TS:
+        """
+        try:
+            hazard = self.hazard
+            # the operator controls if hazard data includes zero values ('>=' does include; '>' doesn't include)
+            # TODO operator is only part of hurricane - build operator into other hazards
+            operator = '>='
+            hazardDict = {}
+            #EARTHQUAKE
+            if hazard == 'earthquake':
+                try:
+                    path = Path.joinpath(self.tempdir, self.name,'shape/pga.shp') #needs testing
+                    gdf = gpd.read_file(path)
+                except:
+                    sql = """SELECT a.tract, PARAMVALUE, geometry FROM
+                        (SELECT [Tract] as tract ,[PGA] as PARAMVALUE FROM {s}.[dbo].[eqTract]) a
+                        inner join
+                        (SELECT Tract as tract, Shape.STAsText() AS geometry FROM {s}.dbo.hzTract) b
+                        on a.tract = b.tract""".format(s=self.name)
+                    gdf = self.query(sql)
+                hazardDict['Peak Ground Acceleration (g)'] = gdf
 
 ##                #FLOOD from NEWDEV branch
 ##                if hazard == 'flood':
@@ -1370,186 +1403,187 @@ class HazusPackageRegion():
 ##                                    print('ERROR - getHazardGeoDataFrame')
 ##                                    pass
                                 
-                #FLOOD from TEST branch
-                if hazard == 'flood':
-                    # this is a list instead of a dictionary, because some of the 'name' properties are the same
-                    pathHPRScenario = Path.joinpath(self.tempDir,self.scenario)
-                    hazardPathDicts = [
-                        #SLOSH MOM's TBD
-                        #Deterministic Riverine
-                        {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/mix0/w001001.adf')},
-                        #Deterministic Coastal
-                        {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/mix0/w001001.adf')},
-                        #Probabilistic Riverine 5-year
-                        {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd5/w001001.adf')},
-                        #Probabilistic Riverine 10-year
-                        {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd10/w001001.adf')},
-                        #Probabilistic Riverine 25-year
-                        {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd25/w001001.adf')},
-                        #Probabilistic Riverine 50-year
-                        {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd50/w001001.adf')},
-                        #Probabilistic Riverine 100-year
-                        {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd100/w001001.adf')},
-                        #Probabilistic Riverine 500-year
-                        {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd500/w001001.adf')},
-                        #Probabilistic Coastal 5-year
-                        {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd5/w001001.adf')},
-                        #Probabilistic Coastal 10-year
-                        {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd10/w001001.adf')},
-                        #Probabilistic Coastal 25-year
-                        {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd25/w001001.adf')},
-                        #Probabilistic Coastal 50-year
-                        {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd50/w001001.adf')},
-                        #Probabilistic Coastal 100-year
-                        {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd100/w001001.adf')},
-                        #Probabilistic Coastal 500-year
-                        {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd500/w001001.adf')}
-                    ]
+            #FLOOD from TEST branch
+            if hazard == 'flood':
+                # this is a list instead of a dictionary, because some of the 'name' properties are the same
+                pathHPRScenario = Path.joinpath(self.tempDir,self.scenario)
+                hazardPathDicts = [
+                    #SLOSH MOM's TBD
+                    #Deterministic Riverine
+                    {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/mix0/w001001.adf')},
+                    #Deterministic Coastal
+                    {'name': 'Water Depth (ft)', 'returnPeriod': '0', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/mix0/w001001.adf')},
+                    #Probabilistic Riverine 5-year
+                    {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd5/w001001.adf')},
+                    #Probabilistic Riverine 10-year
+                    {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd10/w001001.adf')},
+                    #Probabilistic Riverine 25-year
+                    {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd25/w001001.adf')},
+                    #Probabilistic Riverine 50-year
+                    {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd50/w001001.adf')},
+                    #Probabilistic Riverine 100-year
+                    {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd100/w001001.adf')},
+                    #Probabilistic Riverine 500-year
+                    {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': Path.joinpath(pathHPRScenario,'Riverine/Depth/rpd500/w001001.adf')},
+                    #Probabilistic Coastal 5-year
+                    {'name': 'Water Depth (ft) - 5-year', 'returnPeriod': '5', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd5/w001001.adf')},
+                    #Probabilistic Coastal 10-year
+                    {'name': 'Water Depth (ft) - 10-year', 'returnPeriod': '10', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd10/w001001.adf')},
+                    #Probabilistic Coastal 25-year
+                    {'name': 'Water Depth (ft) - 25-year', 'returnPeriod': '25', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd25/w001001.adf')},
+                    #Probabilistic Coastal 50-year
+                    {'name': 'Water Depth (ft) - 50-year', 'returnPeriod': '50', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd50/w001001.adf')},
+                    #Probabilistic Coastal 100-year
+                    {'name': 'Water Depth (ft) - 100-year', 'returnPeriod': '100', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd100/w001001.adf')},
+                    #Probabilistic Coastal 500-year
+                    {'name': 'Water Depth (ft) - 500-year', 'returnPeriod': '500', 'path': Path.joinpath(pathHPRScenario,'Coastal/Depth/rpd500/w001001.adf')}
+                ]
 
-                    #FIM Flood Inundation Mapping; Can be 1 or many
-                    #unzippedHPRname/scenarioname/Riverine/Depth/returnperiodname(rpd{X}))/w001001.adf
-                    #i.e. nora_temp\nora_08\Riverine\Depth\rpd8\w001001.adf
-                    Selected_Rtn_Period = self.getFIMSelected_Rtn_Period()
-                    Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
-                                               'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
-                    print(Selected_Rtn_PeriodDict) #debug
-                    hazardPathDicts.append(Selected_Rtn_PeriodDict)               
-                    
+                #FIM Flood Inundation Mapping; Can be 1 or many
+                #unzippedHPRname/scenarioname/Riverine/Depth/returnperiodname(rpd{X}))/w001001.adf
+                #i.e. nora_temp\nora_08\Riverine\Depth\rpd8\w001001.adf
+                Selected_Rtn_Period = self.getFIMSelected_Rtn_Period()
+                Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
+                                           'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
+                print(Selected_Rtn_PeriodDict) #debug
+                hazardPathDicts.append(Selected_Rtn_PeriodDict)               
+                
 
-                    for idx in range(len(hazardPathDicts)):
-                        if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod.strip() or self.returnPeriod == 'Mix0':
-                            print('match', hazardPathDicts[idx]['returnPeriod'], self.returnPeriod, self.returnPeriod.strip())
-                            try:
-                                raster = rio.open(hazardPathDicts[idx]['path'])
-                                affine = raster.meta.get('transform')
-                                crs = raster.meta.get('crs')
-                                band = raster.read(1)
-                                band = np.where(band < 0, 0, band)
-                                if round:
-                                    band = np.rint(band)
+                for idx in range(len(hazardPathDicts)):
+                    if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod.strip() or self.returnPeriod == 'Mix0':
+                        print('match', hazardPathDicts[idx]['returnPeriod'], self.returnPeriod, self.returnPeriod.strip())
+                        try:
+                            raster = rio.open(hazardPathDicts[idx]['path'])
+                            affine = raster.meta.get('transform')
+                            crs = raster.meta.get('crs')
+                            band = raster.read(1)
+                            band = np.where(band < 0, 0, band)
+                            if round:
+                                band = np.rint(band)
 
-                                geoms = []
-                                for geometry, value in features.shapes(band, transform=affine):
-                                    try:
-                                        if value >= 1:
-                                            result = {'properties': {
-                                                'PARAMVALUE': value}, 'geometry': geometry}
-                                        geoms.append(result)
-                                    except:
-                                        pass
-                                gdf = gpd.GeoDataFrame.from_features(geoms)
-                                gdf.crs = crs
-                                gdf.geometry = gdf.geometry.to_crs(epsg=4326)
-                                hazardDict[hazardPathDicts[idx]['name']] = gdf
-                            except Exception as e:
-                                print('Exception hazardPathDicts')
-                                print(e)
-                                pass
-
-                                
-                #HURRICANE        
-                if hazard == 'hurricane':
-                    try:
-                        hazardPathDict = {
-                            # Historic
-                            'Historic Wind Speeds (mph)':
-                            {'returnPeriod': '0',
-                                'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario, o=operator)},
-                            # Deterministic
-                            'Wind Speeds (mph)':
-                            {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
-                                s=self.name, sc=self.scenario, o=operator)},
-                            # Probabilistic 10-year
-                            'Wind Speeds (mph) - 10-year':
-                            {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr {o} 0'.format(
-                                s=self.name, o=operator)},
-                            # Probabilistic 20-year
-                            'Wind Speeds (mph) - 20-year':
-                            {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr {o} 0'.format(
-                                s=self.name, o=operator)},
-                            # Probabilistic 50-year
-                            'Wind Speeds (mph) - 50-year':
-                            {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr {o} 0'.format(
-                                s=self.name, o=operator)},
-                            # Probabilistic 100-year
-                            'Wind Speeds (mph) - 100-year':
-                            {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr {o} 0'.format(
-                                s=self.name, o=operator)},
-                            # Probabilistic 200-year
-                            'Wind Speeds (mph) - 200-year':
-                            {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr {o} 0'.format(
-                                s=self.name, o=operator)},
-                            # Probabilistic 500-year
-                            'Wind Speeds (mph) - 500-year':
-                            {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr {o} 0'.format(
-                                s=self.name, o=operator)},
-                            # Probabilistic 1000-year
-                            'Wind Speeds (mph) - 1000-year':
-                            {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr {o} 0'.format(
-                                s=self.name, o=operator)}
-                        }
-                        for key in hazardPathDict.keys():
-                            if hazardPathDict[key]['returnPeriod'] == self.returnPeriod:
+                            geoms = []
+                            for geometry, value in features.shapes(band, transform=affine):
                                 try:
-                                    df = self.query(hazardPathDict[key]['path'])
-                                    if len(df) > 0:
-                                        sdf = HazusPackageRegionDataFrame(self, df)
-                                        sdf = sdf.addGeometry()
-                                        sdf['geometry'] = sdf['geometry'].apply(
-                                            loads)
-                                        gdf = gpd.GeoDataFrame(
-                                            sdf, geometry='geometry')
-                                        hazardDict[key] = gdf
+                                    if value >= 1:
+                                        result = {'properties': {
+                                            'PARAMVALUE': value}, 'geometry': geometry}
+                                    geoms.append(result)
                                 except:
                                     pass
+                            gdf = gpd.GeoDataFrame.from_features(geoms)
+                            gdf.crs = crs
+                            gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+                            hazardDict[hazardPathDicts[idx]['name']] = gdf
+                        except Exception as e:
+                            print('Exception hazardPathDicts')
+                            print(e)
+                            pass
+
+                            
+            #HURRICANE        
+            if hazard == 'hurricane':
+                try:
+                    hazardPathDict = {
+                        # Historic
+                        'Historic Wind Speeds (mph)':
+                        {'returnPeriod': '0',
+                            'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario, o=operator)},
+                        # Deterministic
+                        'Wind Speeds (mph)':
+                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
+                            s=self.name, sc=self.scenario, o=operator)},
+                        # Probabilistic 10-year
+                        'Wind Speeds (mph) - 10-year':
+                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 20-year
+                        'Wind Speeds (mph) - 20-year':
+                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 50-year
+                        'Wind Speeds (mph) - 50-year':
+                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 100-year
+                        'Wind Speeds (mph) - 100-year':
+                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 200-year
+                        'Wind Speeds (mph) - 200-year':
+                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 500-year
+                        'Wind Speeds (mph) - 500-year':
+                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr {o} 0'.format(
+                            s=self.name, o=operator)},
+                        # Probabilistic 1000-year
+                        'Wind Speeds (mph) - 1000-year':
+                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr {o} 0'.format(
+                            s=self.name, o=operator)}
+                    }
+                    for key in hazardPathDict.keys():
+                        if hazardPathDict[key]['returnPeriod'] == self.returnPeriod:
+                            try:
+                                df = self.query(hazardPathDict[key]['path'])
+                                if len(df) > 0:
+                                    sdf = HazusPackageRegionDataFrame(self, df)
+                                    sdf = sdf.addGeometry()
+                                    sdf['geometry'] = sdf['geometry'].apply(
+                                        loads)
+                                    gdf = gpd.GeoDataFrame(
+                                        sdf, geometry='geometry')
+                                    hazardDict[key] = gdf
+                            except:
+                                pass
+                except:
+                    pass
+            #TSUNAMI
+            if hazard == 'tsunami':
+                raster = rio.open(Path.joinpath(self.tempdir, self.name, '/maxdg_dft/w001001.adf')) #needs testing
+                affine = raster.meta.get('transform')
+                crs = raster.meta.get('crs')
+                band = raster.read(1)
+                band = np.where(band < 0, 0, band)
+                if round:
+                    band = np.rint(band)
+
+                geoms = []
+                for geometry, value in features.shapes(band, transform=affine):
+                    try:
+                        if value >= 1:
+                            result = {'properties': {
+                                'PARAMVALUE': value}, 'geometry': geometry}
+                        geoms.append(result)
                     except:
                         pass
-                #TSUNAMI
-                if hazard == 'tsunami':
-                    raster = rio.open(Path.joinpath(self.tempdir, self.name, '/maxdg_dft/w001001.adf')) #needs testing
-                    affine = raster.meta.get('transform')
-                    crs = raster.meta.get('crs')
-                    band = raster.read(1)
-                    band = np.where(band < 0, 0, band)
-                    if round:
-                        band = np.rint(band)
+                gdf = gpd.GeoDataFrame.from_features(geoms)
+                gdf.PARAMVALUE[gdf.PARAMVALUE > 60] = 0
+                gdf.crs = crs
+                gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+                hazardDict['Water Depth (ft)'] = gdf
 
-                    geoms = []
-                    for geometry, value in features.shapes(band, transform=affine):
-                        try:
-                            if value >= 1:
-                                result = {'properties': {
-                                    'PARAMVALUE': value}, 'geometry': geometry}
-                            geoms.append(result)
-                        except:
-                            pass
-                    gdf = gpd.GeoDataFrame.from_features(geoms)
-                    gdf.PARAMVALUE[gdf.PARAMVALUE > 60] = 0
-                    gdf.crs = crs
-                    gdf.geometry = gdf.geometry.to_crs(epsg=4326)
-                    hazardDict['Water Depth (ft)'] = gdf
-
-                keys = list(hazardDict.keys()) #debug
-                print(keys)
-                
-                if len(hazardDict.keys()) > 1:
-                    print('>1')
-                    gdf = gpd.GeoDataFrame(pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
-                else:
-                    print('<=1')
-                    gdf = hazardDict[keys[0]]
-                sdf = HazusPackageRegionDataFrame(self, gdf)
-                sdf.title = keys[0]
-                print(sdf.title)
-                return sdf
-            except Exception as e:
-                print("Unexpected error getHazardGeoDataFrame:", sys.exc_info()[0])
-                print(e)
-                raise
+            keys = list(hazardDict.keys()) #debug
+            print(keys)
+            
+            if len(hazardDict.keys()) > 1:
+                print('>1')
+                gdf = gpd.GeoDataFrame(pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
+            else:
+                print('<=1')
+                gdf = hazardDict[keys[0]]
+            sdf = HazusPackageRegionDataFrame(self, gdf)
+            sdf.title = keys[0]
+            print(sdf.title)
+            return sdf
+        except Exception as e:
+            print("Unexpected error getHazardGeoDataFrame:", sys.exc_info()[0])
+            print(e)
+            raise
 
     def createReport(self):
+        """Stub in
         """
-        """
-        self.report = Report(self, self.name, '', self.hazard)
+        #self.report = Report(self, self.name, '', self.hazard)
+        pass
     
 
