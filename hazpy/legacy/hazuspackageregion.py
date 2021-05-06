@@ -1301,6 +1301,51 @@ class HazusPackageRegion():
             subprocess.check_call(command)
         except Exception as e:
             print(e)
+
+    def exportFloodHazardPolyToShapefileToZipFile(self, outputShapefile):
+        """
+        Inputs:
+            outputShapefile: str -- name of the output shapefile and path.
+
+        Notes:
+            I.E. \nora_temp\nora_01\Riverine\CaseOutput.mdb or \nora_temp\nora_01\Coastal\CaseOutput.mdb ?
+            I.E. BoundaryPolyRP101 but look for BoundaryPoly* as there should be one but the suffix may be different
+        """
+
+
+        shapefileSuffixList = ['.shp', '.shx', '.dbf', '.prj', '.sbn',
+                               'sbx', '.fbn', '.fbx', '.ain', '.aih',
+                               '.ixs', '.mxs', '.atx', '.shp.xml',
+                               '.cpg', '.qix']
+        try:
+            mdbPath = self.floodMdbPath #r'C:\workspace\nora_temp\nora_01\Riverine\CaseOutput.mdb'
+            boundaryPoly = self.floodBoundaryPolygonName
+            command = f'ogr2ogr -f "ESRI Shapefile" "{outputShapefile}" "{mdbPath}" {boundaryPoly}'
+            subprocess.check_call(command)
+        except Exception as e:
+            print("Unexpected error exportFloodHazardPolyToShapefileToZipFile 1:")
+            print(e)
+        try:
+            #Get filename from path (i.e. results.shp) and create a zipfile of the same name...
+            pathObject = Path(outputShapefile)
+            pathZip = Path.joinpath(pathObject.parent, pathObject.stem + '.zip')
+            #For each shapefile suffix, see if it exists for filename from path and if so, append it to the zipfile...
+            with zipfile.ZipFile(pathZip, 'a') as myzip:
+                for suffix in shapefileSuffixList:
+                    shapefileFile = Path.joinpath(pathObject.parent, pathObject.stem + suffix)
+                    if shapefileFile.exists():
+                        myzip.write(shapefileFile, shapefileFile.name)
+        except:
+            print("Unexpected error exportFloodHazardPolyToShapefileToZipFile 2:", sys.exc_info()[0])
+            raise
+        try:
+            #Delete the shapefile...
+            driver = ogr.GetDriverByName("ESRI Shapefile")
+            if pathObject.exists():
+                 driver.DeleteDataSource(str(outputShapefile))
+        except:
+            print("Unexpected error exportFloodHazardPolyToShapefileToZipFile 3:", sys.exc_info()[0])
+            raise
         
         
     def getFIMSelected_Rtn_Period(self):

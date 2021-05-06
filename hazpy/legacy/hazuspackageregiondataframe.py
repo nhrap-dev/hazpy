@@ -4,6 +4,9 @@ import sys
 from shapely.wkt import loads
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
+import zipfile
+from pathlib import Path
+from osgeo import ogr
 
 
 class HazusPackageRegionDataFrame(pd.DataFrame):
@@ -180,3 +183,48 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
         except Exception as e:
             print(e)
 
+    def toShapefiletoZipFile(self, path):
+        """ Exports a StudyRegionDataFrame to an Esri Shapefile and zips it up into one zipfile
+
+            Keyword Arguments: \n
+                path: str -- F)
+
+            Notes: Shapefiles are made up of at least three files with the same name but different
+                file type, i.e. results.dbf, results.shp, results.shx. They can have additional files
+                with the following file types: .prj, .sbn, sbx, .fbn, .fbx, .ain, .aih, .ixs, .mxs,
+                .atx, .shp.xml, .cpg, .qix.
+        """
+        shapefileSuffixList = ['.shp', '.shx', '.dbf', '.prj', '.sbn',
+                               'sbx', '.fbn', '.fbx', '.ain', '.aih',
+                               '.ixs', '.mxs', '.atx', '.shp.xml',
+                               '.cpg', '.qix']
+        try:
+            if 'geometry' not in self.columns:
+                self = self.addGeometry()
+            self['geometry'] = self['geometry'].apply(lambda x: loads(str(x)))
+            gdf = gpd.GeoDataFrame(self, geometry='geometry')
+            gdf.to_file(path, driver='ESRI Shapefile')
+        except:
+            print("Unexpected error toShapefiletoZipFile 1:", sys.exc_info()[0])
+            raise
+        try:
+            #Get filename from path (i.e. results.shp) and create a zipfile of the same name...
+            pathObject = Path(path)
+            pathZip = Path.joinpath(pathObject.parent, pathObject.stem + '.zip')
+            #For each shapefile suffix, see if it exists for filename from path and if so, append it to the zipfile...
+            with zipfile.ZipFile(pathZip, 'a') as myzip:
+                for suffix in shapefileSuffixList:
+                    shapefileFile = Path.joinpath(pathObject.parent, pathObject.stem + suffix)
+                    if shapefileFile.exists():
+                        myzip.write(shapefileFile, shapefileFile.name)
+        except:
+            print("Unexpected error toShapefiletoZipFile 2:", sys.exc_info()[0])
+            raise
+        try:
+            #Delete the shapefile...
+            driver = ogr.GetDriverByName("ESRI Shapefile")
+            if pathObject.exists():
+                 driver.DeleteDataSource(str(path))
+        except:
+            print("Unexpected error toShapefiletoZipFile 3:", sys.exc_info()[0])
+            raise
