@@ -331,7 +331,7 @@ class HazusPackageRegion():
         print(f'Restoring database: {dbName} ...')
         mdfPath = Path.joinpath(dirPath, f'{LogicalName_data}.mdf') 
         logPath = Path.joinpath(dirPath, f'{LogicalName_log}.mdf')
-        cursor.execute(f"RESTORE DATABASE [bk_{dbName}] FROM DISK='{bkFilePath}' WITH MOVE '{LogicalName_data}' to '{mdfPath}', MOVE '{LogicalName_log}' to '{logPath}'")
+        cursor.execute(f"RESTORE DATABASE [bk_{dbName}] FROM DISK='{bkFilePath}' WITH REPLACE, MOVE '{LogicalName_data}' to '{mdfPath}', MOVE '{LogicalName_log}' to '{logPath}'")
         while cursor.nextset():
             pass
         print('...done')
