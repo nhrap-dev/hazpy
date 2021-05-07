@@ -135,7 +135,7 @@ class HazusPackageRegion():
             hprHazusVersion = versionLookupDict[commentVersion]
             return hprHazusVersion
         else:
-            print(f'{zVersion} not in Hazus version list.')
+            print(f'{commentVersion} not in Hazus version list.')
 
     def getHPRHazards(self, hprComment, returnType='list'):
         """Compare comments value to known Hazus version value to get common Hazus version.
