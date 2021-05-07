@@ -195,7 +195,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
                 .atx, .shp.xml, .cpg, .qix.
         """
         shapefileSuffixList = ['.shp', '.shx', '.dbf', '.prj', '.sbn',
-                               'sbx', '.fbn', '.fbx', '.ain', '.aih',
+                               '.sbx', '.fbn', '.fbx', '.ain', '.aih',
                                '.ixs', '.mxs', '.atx', '.shp.xml',
                                '.cpg', '.qix']
         try:
