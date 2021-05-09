@@ -1631,6 +1631,22 @@ class HazusPackageRegion():
             print(e)
             raise
 
+    def getHzBoundary(self):
+        """Get the study region area as a polygon.
+            Returns:
+                df: pandas dataframe -- a dataframe of the summarized demographics
+        """
+        print('getHzBoundary')
+        try:
+
+            sql = f"SELECT [OBJECTID],[Shape].STAsText() AS geometry FROM [{self.name}].[dbo].[hzboundary]"
+
+            df = self.query(sql)
+            return HazusPackageRegionDataFrame(self, df)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            raise
+
     def createReport(self):
         """Stub in
         """
