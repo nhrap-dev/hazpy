@@ -1613,7 +1613,7 @@ class HazusPackageRegion():
                 gdf.geometry = gdf.geometry.to_crs(epsg=4326)
                 hazardDict['Water Depth (ft)'] = gdf
 
-##            keys = list(hazardDict.keys()) #debug
+            keys = list(hazardDict.keys()) #debug
 ##            print(keys) #debug
             
             if len(hazardDict.keys()) > 1:
