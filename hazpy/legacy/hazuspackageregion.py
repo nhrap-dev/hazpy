@@ -1273,7 +1273,7 @@ class HazusPackageRegion():
         driver = ogr.GetDriverByName("PGeo") #for ESRI .mdb
         
         try:
-            gdb = driver.Open(mdbPath, 0)
+            gdb = driver.Open(mdbPath, 0) # 0 means read-only. 1 means writeable.
         except Exception as e:
             print(e)
             sys.exit()
