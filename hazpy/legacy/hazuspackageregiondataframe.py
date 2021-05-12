@@ -127,20 +127,33 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
         """
         self.to_csv(path, index=False)
 
-    def toShapefile(self, path):
-        """ Exports a StudyRegionDataFrame to an Esri Shapefile
+    def toShapefile(self, path, in_epsg, out_epsg):
+        """ Exports a StudyRegionDataFrame to an Esri Shapefile. Requires the input crs and output crs to be defined.
 
             Keyword Arguments: \n
                 path: str -- F)
+                in_epsg: str -- Must follow this format 'epsg:4326' or 'epsg:3857'
+                out_epsg: str -- Must follow this format 'epsg:4326' or 'epsg:3857'
         """
         try:
             if 'geometry' not in self.columns:
                 self = self.addGeometry()
             self['geometry'] = self['geometry'].apply(lambda x: loads(str(x)))
             gdf = gpd.GeoDataFrame(self, geometry='geometry')
+            try:
+                if gdf.crs is None:
+                    gdf.set_crs(in_epsg, inplace=True)
+            except Exception as e:
+                print('unable to set crs')
+                print(e)
+            try:
+                gdf.to_crs(out_epsg, inplace=True)
+            except Exception as e:
+                print('unable to project')
+                print(e)
             gdf.to_file(path, driver='ESRI Shapefile')
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error toShapefile:", sys.exc_info()[0])
             raise
 
     def toGeoJSON(self, path):
@@ -183,11 +196,13 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
         except Exception as e:
             print(e)
 
-    def toShapefiletoZipFile(self, path):
+    def toShapefiletoZipFile(self, path, in_epsg, out_epsg):
         """ Exports a StudyRegionDataFrame to an Esri Shapefile and zips it up into one zipfile
 
             Keyword Arguments: \n
                 path: str -- F)
+                in_epsg: str -- Must follow this format 'epsg:4326' or 'epsg:3857'
+                out_epsg: str -- Must follow this format 'epsg:4326' or 'epsg:3857'
 
             Notes: Shapefiles are made up of at least three files with the same name but different
                 file type, i.e. results.dbf, results.shp, results.shx. They can have additional files
@@ -203,6 +218,17 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
                 self = self.addGeometry()
             self['geometry'] = self['geometry'].apply(lambda x: loads(str(x)))
             gdf = gpd.GeoDataFrame(self, geometry='geometry')
+            try:
+                if gdf.crs is None:
+                    gdf.set_crs(in_epsg, inplace=True)
+            except Exception as e:
+                print('unable to set crs')
+                print(e)
+            try:
+                gdf.to_crs(out_epsg, inplace=True)
+            except Exception as e:
+                print('unable to project')
+                print(e)
             gdf.to_file(path, driver='ESRI Shapefile')
         except:
             print("Unexpected error toShapefiletoZipFile 1:", sys.exc_info()[0])
