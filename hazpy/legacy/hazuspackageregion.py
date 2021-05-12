@@ -371,6 +371,7 @@ class HazusPackageRegion():
         #print(sqlServerDatabaseVersionRaw) #debug
         sqlServerDatabaseVersion = int(sqlServerDatabaseVersionRaw.split('.')[0])
         if sqlServerDatabaseVersion < 13:
+            self.conn.autocommit = True
             self.cursor.execute(f"USE MASTER IF EXISTS (SELECT * FROM sys.databases WHERE name='{self.name}') DROP DATABASE [{self.name}]") #sql server 2014-, Hazus 4.2.3
         if sqlServerDatabaseVersion >= 13:
             self.cursor.execute(f"USE MASTER ALTER DATABASE [{self.name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE DROP DATABASE IF EXISTS [{self.name}]") #sql server 2016+, Hazus 5.0
