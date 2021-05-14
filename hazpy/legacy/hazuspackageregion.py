@@ -26,7 +26,7 @@ import subprocess
 from osgeo import ogr
 ogr.UseExceptions()
 
-from .hazuspackageregiondataframe import HazusPackageRegionDataFrame #might be able to switch back to RegionDataFrame, since adding name property
+from .hazuspackageregiondataframe import HazusPackageRegionDataFrame
 
 
 class HazusPackageRegion():
@@ -43,9 +43,7 @@ class HazusPackageRegion():
         Notes: Should create a directory for each Hazard/Studycase|Scenario/ScenarioType/ReturnPeriod for exported products.
                 Also should create a main spreadsheet metadata logging what it created and any issues/errors.
     """
-    def __init__(self, hprFilePath, outputDir): #before
-##    def __init__(self, *args, **kwargs): #after
-##        super().__init__(*args, **kwargs) #after
+    def __init__(self, hprFilePath, outputDir):
         """Initializes the HPR object based on inputs.
 
         Notes: Blank properties are filled in via functions.
@@ -78,6 +76,30 @@ class HazusPackageRegion():
 ##        self.floodStudyCaseRiverineCoastalPeriods = []
 
     #GET .HPR FILE INFO
+    def getHPRFileDateTime(self, hprPath, fileName):
+        """Get the specified filename's date_time created from an hpr file.
+
+        Keyword Arguments:
+            hprPath: str -- a string of the full directory path and hpr filename.
+            fileName: str -- a string of the filename in the hpr.
+
+        Returns:
+            fileDate_Time: str -- a string representing the file date in YYYY-MM-DD format
+
+        Notes: ZipFile date_time: tuple https://docs.python.org/3/library/zipfile.html
+        """
+        try:
+            z = zipfile.ZipFile(hprPath, 'r')
+            dateTimeTuple = z.getinfo(fileName).date_time
+            year = str(dateTimeTuple[0])
+            month = str(dateTimeTuple[1]).zfill(2)
+            day = str(dateTimeTuple[2]).zfill(2)
+            dateTime = f'{year}-{month}-{day}'
+            return dateTime
+        except Exception as e:
+            print('Exception getHPRFileDateTime:')
+            print(e)
+        
     def getHPRComment(self, hprPath):
         """Read an .hpr/zipfiles comments and assign to class property.
 
@@ -363,33 +385,32 @@ class HazusPackageRegion():
     #CLEANUP
     def dropDB(self):
         """Using HazusPackageRegion attributes, drop the bk_* database that was restored from the bkfile in the hpr.
-
-        Notes:
         """
         print(f'Dropping {self.name}...')
-        sqlServerDatabaseVersionRaw = self.conn.getinfo(py.SQL_DBMS_VER) #obtain the database version, ie '12.00.4100'
-        #print(sqlServerDatabaseVersionRaw) #debug
-        sqlServerDatabaseVersion = int(sqlServerDatabaseVersionRaw.split('.')[0])
-        if sqlServerDatabaseVersion < 13:
-            self.conn.autocommit = True
-            self.cursor.execute(f"USE MASTER IF EXISTS (SELECT * FROM sys.databases WHERE name='{self.name}') DROP DATABASE [{self.name}]") #sql server 2014-, Hazus 4.2.3
-        if sqlServerDatabaseVersion >= 13:
-            self.cursor.execute(f"USE MASTER ALTER DATABASE [{self.name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE DROP DATABASE IF EXISTS [{self.name}]") #sql server 2016+, Hazus 5.0
-        print('...done')
-        print()
+        try:
+            sqlServerDatabaseVersionRaw = self.conn.getinfo(py.SQL_DBMS_VER) #obtain the database version, ie '12.00.4100'
+            sqlServerDatabaseVersion = int(sqlServerDatabaseVersionRaw.split('.')[0])
+            if sqlServerDatabaseVersion < 13:
+                self.conn.autocommit = True
+                self.cursor.execute(f"USE MASTER IF EXISTS (SELECT * FROM sys.databases WHERE name='{self.name}') DROP DATABASE [{self.name}]") #sql server 2014-, Hazus 4.2.3
+            if sqlServerDatabaseVersion >= 13:
+                self.cursor.execute(f"USE MASTER ALTER DATABASE [{self.name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE DROP DATABASE IF EXISTS [{self.name}]") #sql server 2016+, Hazus 5.0
+            print('...done')
+            print()
+        except Exception as e:
+            print('Unexpected Error dropDB:')
+            print(e)
         
     def deleteTempDir(self):
         """Using HazusPackageRegion attributes, delete the unzipped HPR directory.
-
-        Notes:
         """
         print(f'Deleting temp folder:{self.tempDir}...')
         try:
             shutil.rmtree(self.tempDir)
+            print('...done')
+            print()
         except OSError as e:
             print ("Error: %s - %s." % (e.filename, e.strerror))
-        print('...done')
-        print()
 
         
         
@@ -439,20 +460,93 @@ class HazusPackageRegion():
                 returnPeriods.append('0')
             return returnPeriods
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getReturnPeriods:", sys.exc_info()[0])
             raise
 
     def getAnalysisType(self):
         """Historical, Deterministic, Probabalistic. Deterministic includes historical and everything that is not probabilistic
 
             Notes:
-                EQ:
+                EQ: eqShakeMapSecenario EarthquakeType=Actual or Scenario and use Probabilistic when RgnExpeqScenario.EqScenarioType=P
                 FL: Whenever Return Period is a number = probabalistic; when its mix0 its deterministic
                 HU:
                 TS:
         """
-        pass
+        try:
+            if self.hazard == 'earthquake':
+                sqlEqScenarioType = f'SELECT [EqScenarioType] FROM [bk_{self.dbName}].[dbo].[RgnExpeqScenario]'
+                dfEqScenarioType = self.query(sqlEqScenarioType)
+                EqScenarioType = dfEqScenarioType['EqScenarioType'].iat[0] #the table should be a single cell
+                if EqScenarioType == 'M':
+                    sqlEarthquakeType = f'SELECT [EarthquakeType] FROM [bk_{self.dbName}].[dbo].[eqShakeMapScenario]'
+                    dfEarthquakeType = self.query(sqlEarthquakeType)
+                    EarthquakeType = dfEarthquakeType['EarthquakeType'].iat[0] #the table should be a single cell
+                    if EarthquakeType == 'ACTUAL':
+                        return 'Shakemap'
+                    if EarthquakeType == 'SCENARIO':
+                        return 'Scenario'
+                elif EqScenarioType == 'P':
+                    return 'Probabilistic'
+        except Exception as e:
+            print('Exception getAnalysisType:')
+            print(e)
 
+    def getEarthquakeShakemapUrl(self):
+        """Get the ShakemapId
+
+            Returns:
+                str: string -- A url to USGS Shakemap Event
+        """
+        sql = f"SELECT [ShakeMapId] FROM [bk_{self.dbName}].[dbo].[eqShakeMapScenario]"
+        try:
+            df = self.query(sql)
+            shakemapId = df['ShakeMapId'].iat[0] #the table should be a single cell
+            shakemapUrl = f"https://earthquake.usgs.gov/scenarios/eventpage/{shakemapId}/executive"
+            return shakemapUrl
+        except Exception as e:
+            print("Unexpected error getEarthquakeShakemapId:", sys.exc_info()[0])
+            print(e)
+
+    def getEarthquakeMagnitude(self):
+        """Get the Earthquake magnitude
+
+            Returns:
+                str: string -- 
+        """
+        sql = f"SELECT [Magnitude] FROM [bk_{self.dbName}].[dbo].[RgnExpeqScenario]"
+        try:
+            df = self.query(sql)
+            magnitude = df['Magnitude'].iat[0] #the table should be a single cell
+            return magnitude
+        except Exception as e:
+            print("Unexpected error getEarthquakeMagnitude:", sys.exc_info()[0])
+            print(e)
+            
+    def getEQShakeMapScenario(self):
+        """Get the eqShakeMapScenario table as a dataframe to export
+
+            Returns:
+                df: pandas dataframe -- a dataframe of eqShakeMapScenario
+        """
+        try:
+            sql = f"""SELECT [ID]
+                      ,[ScenarioName]
+                      ,[EarthquakeType]
+                      ,[EventDescription]
+                      ,[EpicenterLon]
+                      ,[EpicenterLat]
+                      ,[Magnitude]
+                      ,[EpicenterDepth]
+                      ,[ShakeMapVersion]
+                      ,[ShakeMapOriginator]
+                      ,[ShakeMapId]
+                      FROM [bk_{self.dbName}].[dbo].[eqShakeMapScenario]"""
+            df = self.query(sql)
+            return HazusPackageRegionDataFrame(self, df)
+        except Exception as e:
+            print('Unexpected error getEQShakeMapScenario:')
+            print(e)
+        
     def getFloodHazardType(self):
         """Determine the Flood Hazard Type; Riverine or Coastal.
 
@@ -460,7 +554,7 @@ class HazusPackageRegion():
                 str: string --
 
             Notes:
-                Not currently in use.
+                ********Not currently in use.************
                 {s}.[dbo].[flHazType] has integer to string conversion of Hazard_Type.
         """
         sql = """SELECT [ParmValue]
@@ -475,9 +569,8 @@ class HazusPackageRegion():
             if Hazard_Type != 1:
                 return 'Coastal'
         except Exception as e:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getFloodHazardType:", sys.exc_info()[0])
             print(e)
-            raise 
         
     def getScenarios(self, hazard):
         """Get a list of scenarios for a given hazard.
@@ -502,7 +595,7 @@ class HazusPackageRegion():
             scenarios = list(queryset['scenarios'])
             return scenarios
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getScenarios:", sys.exc_info()[0])
             raise
             
         
@@ -611,7 +704,7 @@ class HazusPackageRegion():
             df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getEconomicLoss:", sys.exc_info()[0])
             raise
 
     def getBuildingDamage(self):
@@ -658,7 +751,7 @@ class HazusPackageRegion():
             df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getBuildingDamage:", sys.exc_info()[0])
             raise
 
     def getFatalities(self):
@@ -708,7 +801,7 @@ class HazusPackageRegion():
                 df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getFatalities:", sys.exc_info()[0])
             raise
         
     def getInjuries(self):
@@ -761,7 +854,7 @@ class HazusPackageRegion():
                 df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getInjuries:", sys.exc_info()[0])
             raise
         
     def getShelterNeeds(self):
@@ -792,7 +885,7 @@ class HazusPackageRegion():
                 df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getShelterNeeds:", sys.exc_info()[0])
             raise
 
     def getDisplacedHouseholds(self):
@@ -824,7 +917,7 @@ class HazusPackageRegion():
                 df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getDisplacedHouseholds:", sys.exc_info()[0])
             raise
 
     def getDebris(self):
@@ -857,7 +950,7 @@ class HazusPackageRegion():
             df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getDebris:", sys.exc_info()[0])
             raise
         
     def getDemographics(self):
@@ -878,7 +971,7 @@ class HazusPackageRegion():
             df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getDemographics:", sys.exc_info()[0])
             raise
     
     def getResults(self):
@@ -918,7 +1011,7 @@ class HazusPackageRegion():
 
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getResults:", sys.exc_info()[0])
             raise
         
     def getEssentialFacilities(self):
@@ -1075,7 +1168,7 @@ class HazusPackageRegion():
                 print("No essential facility loss information for " +
                       self.name)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getEssentialFacilities:", sys.exc_info()[0])
             raise
         
     def getBuildingDamageByOccupancy(self):
@@ -1134,7 +1227,7 @@ class HazusPackageRegion():
             df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getBuildingDamageByOccupancy:", sys.exc_info()[0])
             raise
 
     def getBuildingDamageByType(self):
@@ -1192,7 +1285,7 @@ class HazusPackageRegion():
             df = self.query(sqlDict[self.hazard])
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getBuildingDamageByType:", sys.exc_info()[0])
             raise
 
     def getTravelTimeToSafety(self):
@@ -1220,7 +1313,7 @@ class HazusPackageRegion():
                 gdf = gpd.GeoDataFrame(df, geometry='geometry')
                 return gdf
             except:
-                print("Unexpected error:", sys.exc_info()[0])
+                print("Unexpected error getTravelTimeToSafety:", sys.exc_info()[0])
                 raise
         else:
             print("This method is only available for tsunami study regions")
@@ -1246,7 +1339,7 @@ class HazusPackageRegion():
             gdf = gpd.GeoDataFrame(df, geometry='geometry')
             return gdf
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getCounties:", sys.exc_info()[0])
             raise
 
     def getFloodBoundaryPolyName(self, hazardType='R'):
@@ -1379,7 +1472,7 @@ class HazusPackageRegion():
             Selected_Rtn_Period = df['ParmValue'].iat[0] #the table should be a single cell
             return Selected_Rtn_Period.strip() 
         except Exception as e:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getFIMSelected_Rtn_Period:", sys.exc_info()[0])
             print(e)
             raise 
         
@@ -1645,13 +1738,7 @@ class HazusPackageRegion():
             df = self.query(sql)
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error getHzBoundary:", sys.exc_info()[0])
             raise
-
-    def createReport(self):
-        """Stub in
-        """
-        #self.report = Report(self, self.name, '', self.hazard)
-        pass
     
 
