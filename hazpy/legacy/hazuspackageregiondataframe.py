@@ -38,13 +38,13 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
         try:
 
             sql = """SELECT Tract as tract, Shape.STAsText() AS geometry FROM {s}.dbo.hzTract""".format(
-                s=self.hazuspackageregion)
+                s=self.hazusPackageRegion)
 
             df = self.query(sql)
             newDf = pd.merge(df, self, on="tract")
             return HazusPackageRegionDataFrame(self, newDf)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error addCensusTracts:", sys.exc_info()[0])
             raise
 
     def addCensusBlocks(self):
@@ -62,7 +62,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
             newDf = pd.merge(df, self, on="block")
             return HazusPackageRegionDataFrame(self, newDf)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error addCensusBlocks:", sys.exc_info()[0])
             raise
 
     def addCounties(self):
@@ -91,7 +91,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
             temp_df = pd.merge(update_df, temp_df, on="countyfips")
             return HazusPackageRegionDataFrame(self, temp_df)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error addCounties:", sys.exc_info()[0])
             raise
 
     def addGeometry(self):
@@ -116,7 +116,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
                 print(
                     'Unable to find the column name block, tract, or county in the dataframe input')
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error addGeometry:", sys.exc_info()[0])
             raise
 
     def toCSV(self, path):
@@ -171,7 +171,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
             gdf = gpd.GeoDataFrame(self, geometry='geometry')
             gdf.to_file(path, driver='GeoJSON')
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error toGeoJSON:", sys.exc_info()[0])
             raise
 
     def toHLLGeoJSON(self, path):
@@ -194,6 +194,7 @@ class HazusPackageRegionDataFrame(pd.DataFrame):
             dissolved = dissolved.simplify(1)
             dissolved.to_file(path, driver='GeoJSON')
         except Exception as e:
+            print("Unexpected error toHLLGeoJSON:", sys.exc_info()[0])
             print(e)
 
     def toShapefiletoZipFile(self, path, in_epsg, out_epsg):
