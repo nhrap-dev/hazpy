@@ -482,9 +482,9 @@ class HazusPackageRegion():
                     dfEarthquakeType = self.query(sqlEarthquakeType)
                     EarthquakeType = dfEarthquakeType['EarthquakeType'].iat[0] #the table should be a single cell
                     if EarthquakeType == 'ACTUAL':
-                        return 'Shakemap'
+                        return 'Historic'
                     if EarthquakeType == 'SCENARIO':
-                        return 'Scenario'
+                        return 'Deterministic'
                 elif EqScenarioType == 'P':
                     return 'Probabilistic'
         except Exception as e:
@@ -706,6 +706,16 @@ class HazusPackageRegion():
         except:
             print("Unexpected error getEconomicLoss:", sys.exc_info()[0])
             raise
+
+    def getTotalEconomicLoss(self):
+        """
+        Queries the total economic loss summation for a study region from the local Hazus SQL Server database
+
+            Returns:
+                totalLoss: integer -- the summation of total economic loss
+        """
+        totalLoss = self.getEconomicLoss()['EconLoss'].sum()
+        return totalLoss
 
     def getBuildingDamage(self):
         print('getBuildingDamage')
@@ -1590,13 +1600,11 @@ class HazusPackageRegion():
                 Selected_Rtn_Period = self.getFIMSelected_Rtn_Period()
                 Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
                                            'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
-##                print(Selected_Rtn_PeriodDict) #debug
                 hazardPathDicts.append(Selected_Rtn_PeriodDict)               
                 
 
                 for idx in range(len(hazardPathDicts)):
                     if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod.strip() or self.returnPeriod == 'Mix0':
-##                        print('match', hazardPathDicts[idx]['returnPeriod'], self.returnPeriod, self.returnPeriod.strip()) #debug
                         try:
                             raster = rio.open(hazardPathDicts[idx]['path'])
                             affine = raster.meta.get('transform')
@@ -1707,18 +1715,25 @@ class HazusPackageRegion():
                 gdf.geometry = gdf.geometry.to_crs(epsg=4326)
                 hazardDict['Water Depth (ft)'] = gdf
 
-            keys = list(hazardDict.keys()) #debug
-##            print(keys) #debug
-            
+            keys = list(hazardDict.keys())
             if len(hazardDict.keys()) > 1:
-##                print('>1') #debug
                 gdf = gpd.GeoDataFrame(pd.concat([hazardDict[x] for x in keys], ignore_index=True), geometry='geometry')
             else:
-##                print('<=1') #debug
                 gdf = hazardDict[keys[0]]
             sdf = HazusPackageRegionDataFrame(self, gdf)
             sdf.title = keys[0]
-##            print(sdf.title) #debug
+            
+            if hazard == 'earthquake':
+                try:
+                    sdf.rename(columns={'PARAMVALUE': 'PGA_g'}, inplace=True)
+                except Exception as e:
+                    print(e)
+            if hazard == 'flood':
+                try:
+                    sdf.rename(columns={'PARAMVALUE': 'Depth_ft'}, inplace=True)
+                except Exception as e:
+                    print(e)
+                
             return sdf
         except Exception as e:
             print("Unexpected error getHazardGeoDataFrame:", sys.exc_info()[0])
