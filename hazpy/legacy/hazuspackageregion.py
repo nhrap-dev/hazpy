@@ -1023,6 +1023,29 @@ class HazusPackageRegion():
         except:
             print("Unexpected error getResults:", sys.exc_info()[0])
             raise
+
+    def getGeographicCountUnitofResults(self, df):
+        """ Counts the number of unique geographic units of the results
+            Arguments:
+                df: pandas dataframe -- a dataframe from the getResults() method
+
+            Returns:
+                df: tuple -- a tuple with the geographicCount and the geographicUnit
+        """
+        try:
+            if 'block' in df.columns:
+                geographicUnit  = 'block'
+                geographicCount = len(pd.unique(df['block']))
+            elif 'tract' in df.columns:
+                geographicUnit  = 'tract'
+                geographicCount = len(pd.unique(df['tract']))
+            elif 'county' in df.columns:
+                geographicUnit  = 'county'
+                geographicCount = len(pd.unique(df['county']))
+            return (geographicCount, geographicUnit)
+        except Exception as e:
+            print('Unexpected error getGeographicCountUnitofResults:')
+            print(e)
         
     def getEssentialFacilities(self):
         """ Queries the call essential facilities for a study region in local Hazus SQL Server database
