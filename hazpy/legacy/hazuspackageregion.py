@@ -485,7 +485,7 @@ class HazusPackageRegion():
                         return 'Historic'
                     if EarthquakeType == 'SCENARIO':
                         return 'Deterministic'
-                elif EqScenarioType == 'P':
+                if EqScenarioType == 'P':
                     return 'Probabilistic'
         except Exception as e:
             print('Exception getAnalysisType:')
