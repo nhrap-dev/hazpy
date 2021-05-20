@@ -159,6 +159,19 @@ class HazusPackageRegion():
         else:
             print(f'{commentVersion} not in Hazus version list.')
 
+
+    def getHPRBKFileName(self, hprComment):
+        """Get the bk file name from a hpr comment.
+        Keyword Arguments:
+            hprComment: list -- a python list of HPR attributes
+
+        Returns:
+            commentBKFile: string -- the name of the .bk file
+        """
+        commentBKFile = hprComment[3]
+        return commentBKFile
+
+
     def getHPRHazards(self, hprComment, returnType='list'):
         """Compare comments value to known Hazus version value to get common Hazus version.
 
@@ -214,13 +227,34 @@ class HazusPackageRegion():
         print('...done')
         print()
 
+    def getBKFilePathFromHPRComment(self, fileDir, hprComment):
+        """Set the bkFilePath attribute.
+
+            Keyword Arguments:
+                fileDir: str -- the unzipped hpr directory
+                
+        Note: there can be many hpr files
+        """
+        try:
+            bkFileName = self.getHPRBKFileName(self.hprComment)
+            bkFilePath = Path.joinpath(Path(fileDir), bkFileName)
+            if bkFilePath.exists():
+                self.bkFilePath = bkFilePath
+                self.dbName = bkFilePath.stem
+                self.name = 'bk_' + self.dbName
+            else:
+                print(f'no bkfile in {fileDir}')
+        except Exception as e:
+            print('Unexpected error getBKFilePathFromHPRComment:')
+            print(e)
+    
     def getBKFilePath(self, fileDir):
         """Set the bkFilePath attribute.
 
             Keyword Arguments:
                 fileDir: str -- the unzipped hpr directory
                 
-        Note: there should be only one bkfile.
+        Note: This method does not always choose the correct bk file when there are many
         """
         fileExt = r'*.bk'
         bkList = list(Path(fileDir).glob(fileExt))
@@ -368,7 +402,7 @@ class HazusPackageRegion():
         #UnzipHPR...
         self.unzipHPR(self.hprFilePath, self.tempDir)
         #Find .bk files in unzipped folder...
-        self.getBKFilePath(self.tempDir)
+        self.getBKFilePathFromHPRComment(self.tempDir, self.hprComment)
         #Connect to SQL Server Hazus...
         self.conn = self.createConnection()
         self.conn.autocommit = True
@@ -487,6 +521,16 @@ class HazusPackageRegion():
                         return 'Deterministic'
                 if EqScenarioType == 'P':
                     return 'Probabilistic'
+            if self.hazard == 'flood':
+                pass
+            if self.hazard == 'hurricane':
+                sqlHurricaneType = f"SELECT [ScenarioType] FROM [bk_{self.dbName}].[dbo].[huTemplateScenario]"
+                dfHurricaneType = self.query(sqlHurricaneType)
+                HurricaneType = dfHurricaneType['ScenarioType'].iat[0] #the table should be a single cell
+                return HurricaneType #Determinisitic, Historic, Probabilistic
+            if self.hazard == 'tsunami':
+                pass
+            
         except Exception as e:
             print('Exception getAnalysisType:')
             print(e)
@@ -1042,6 +1086,9 @@ class HazusPackageRegion():
             elif 'county' in df.columns:
                 geographicUnit  = 'county'
                 geographicCount = len(pd.unique(df['county']))
+            else:
+                geographicUnit = ''
+                geographicCount = ''
             return (geographicCount, geographicUnit)
         except Exception as e:
             print('Unexpected error getGeographicCountUnitofResults:')
@@ -1666,35 +1713,35 @@ class HazusPackageRegion():
                             'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(s=self.name, sc=self.scenario, o=operator)},
                         # Deterministic
                         'Wind Speeds (mph)':
-                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huDeterminsticWindSpeedResults] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
+                        {'returnPeriod': '0', 'path': "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[RgnExphuDetermWindSpeedResults] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
                             s=self.name, sc=self.scenario, o=operator)},
                         # Probabilistic 10-year
                         'Wind Speeds (mph) - 10-year':
-                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, f10yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f10yr {o} 0'.format(
+                        {'returnPeriod': '10', 'path': 'SELECT Tract as tract, wRtnP1 as PARAMVALUE FROM {s}.[dbo].[huRPWindSpeeds] where wRtnP1 {o} 0'.format(
                             s=self.name, o=operator)},
                         # Probabilistic 20-year
                         'Wind Speeds (mph) - 20-year':
-                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, f20yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f20yr {o} 0'.format(
+                        {'returnPeriod': '20', 'path': 'SELECT Tract as tract, wRtnP2 as PARAMVALUE FROM {s}.[dbo].[huRPWindSpeeds] where wRtnP2 {o} 0'.format(
                             s=self.name, o=operator)},
                         # Probabilistic 50-year
                         'Wind Speeds (mph) - 50-year':
-                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, f50yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f50yr {o} 0'.format(
+                        {'returnPeriod': '50', 'path': 'SELECT Tract as tract, wRtnP3 as PARAMVALUE FROM {s}.[dbo].[huRPWindSpeeds] where wRtnP3 {o} 0'.format(
                             s=self.name, o=operator)},
                         # Probabilistic 100-year
                         'Wind Speeds (mph) - 100-year':
-                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, f100yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f100yr {o} 0'.format(
+                        {'returnPeriod': '100', 'path': 'SELECT Tract as tract, wRtnP4 as PARAMVALUE FROM {s}.[dbo].[huRPWindSpeeds] where wRtnP4 {o} 0'.format(
                             s=self.name, o=operator)},
                         # Probabilistic 200-year
                         'Wind Speeds (mph) - 200-year':
-                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, f200yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f200yr {o} 0'.format(
+                        {'returnPeriod': '200', 'path': 'SELECT Tract as tract, wRtnP5 as PARAMVALUE FROM {s}.[dbo].[huRPWindSpeeds] where wRtnP5 {o} 0'.format(
                             s=self.name, o=operator)},
                         # Probabilistic 500-year
                         'Wind Speeds (mph) - 500-year':
-                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, f500yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f500yr {o} 0'.format(
+                        {'returnPeriod': '500', 'path': 'SELECT Tract as tract, wRtnP6 as PARAMVALUE FROM {s}.[dbo].[huRPWindSpeeds] where wRtnP6 {o} 0'.format(
                             s=self.name, o=operator)},
                         # Probabilistic 1000-year
                         'Wind Speeds (mph) - 1000-year':
-                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, f1000yr as PARAMVALUE FROM {s}.[dbo].[huHazardMapWindSpeed] where f1000yr {o} 0'.format(
+                        {'returnPeriod': '1000', 'path': 'SELECT Tract as tract, wRtnP7 as PARAMVALUE FROM {s}.[dbo].[huRPWindSpeeds] where wRtnP7 {o} 0'.format(
                             s=self.name, o=operator)}
                     }
                     for key in hazardPathDict.keys():
@@ -1778,5 +1825,22 @@ class HazusPackageRegion():
         except:
             print("Unexpected error getHzBoundary:", sys.exc_info()[0])
             raise
-    
 
+    def getHurricaneTrack(self):
+        """Get the Hurricane track as a line.
+            Returns:
+                df: pandas dataframe -- a dataframe of the hurricane track
+            Notes:
+                Only applicable to Historic and Deterministic Hurricane. Not
+                available for Probabilistic nor AAL. Currently there is a potential
+                issue with ogr2ogr PGEO .mdb connections not supported in some
+                environments so Historic is not available.
+
+                Historic: From DeterministicStormTracks based on Name in 'C:\Program Files (x86)\Hazus\Data\HU\WindField\huStormTrack.mdb'
+                Deterministic: [RgnExphuStormTrack] Latitude and Longitude points (this is not a feature class)
+        """
+        try:
+            pass
+        except Exception as e:
+            print("Unexpected error getHurricaneTrack:")
+            print(e)
