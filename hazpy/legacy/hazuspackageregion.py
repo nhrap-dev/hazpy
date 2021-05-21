@@ -1265,9 +1265,9 @@ class HazusPackageRegion():
                         AS Minor, SUM(ISNULL(PDsExtensiveBC, 0)) AS Major,
                         SUM(ISNULL(PDsCompleteBC, 0)) AS Destroyed FROM {s}.dbo.[eqTractDmg]
                         WHERE DmgMechType = 'STR' GROUP BY Occupancy""".format(s=self.name),
-                'flood': """SELECT SOccup AS Occupancy, SUM(ISNULL(TotalLoss, 0)) * {c}
-                        AS TotalLoss, SUM(ISNULL(BuildingLoss, 0)) * {c} AS BldgLoss,
-                        SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
+                'flood': """SELECT SOccup AS Occupancy, SUM(CAST(ISNULL(TotalLoss, 0) AS BIGINT)) * {c}
+                        AS TotalLoss, SUM(CAST(ISNULL(BuildingLoss, 0) AS BIGINT)) * {c} AS BldgLoss,
+                        SUM(CAST(ISNULL(ContentsLoss, 0) AS BIGINT)) * {c} AS ContLoss
                         FROM {s}.dbo.[flFRGBSEcLossBySOccup]
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                         and ReturnPeriodId = '{rp}'
@@ -1325,8 +1325,8 @@ class HazusPackageRegion():
                         AS Major, SUM(ISNULL(PDsCompleteBC, 0)) AS Destroyed
                         FROM {s}.dbo.[eqTractDmg] WHERE DmgMechType = 'STR'
                         GROUP BY eqBldgType""".format(s=self.name),
-                'flood': """SELECT BldgType, SUM(ISNULL(TotalLoss, 0)) * {c} AS TotalLoss,
-                        SUM(ISNULL(BuildingLoss, 0)) * {c} AS BldgLoss, SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
+                'flood': """SELECT BldgType, SUM(CAST(ISNULL(TotalLoss, 0) AS BIGINT)) * {c} AS TotalLoss,
+                        SUM(CAST(ISNULL(BuildingLoss, 0) AS BIGINT)) * {c} AS BldgLoss, SUM(CAST(ISNULL(ContentsLoss, 0) AS BIGINT)) * {c} AS ContLoss
                         FROM {s}.dbo.[flFRGBSEcLossByGBldgType] 
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                         and ReturnPeriodId = '{rp}'
