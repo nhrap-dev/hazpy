@@ -111,9 +111,13 @@ class HazusPackageRegion():
     
         Notes: 
         """
-        z = zipfile.ZipFile(hprPath)
-        zComment = z.comment.decode('UTF-8').split('|')
-        return zComment
+        try:
+            z = zipfile.ZipFile(hprPath)
+            zComment = z.comment.decode('UTF-8').split('|')
+            return zComment
+        except Exception as e:
+            print(f'Exception getHPRComment ({hprPath}):')
+            print(e)
 
     def getHPRHazusVersion(self, hprComment):
         """
@@ -222,8 +226,12 @@ class HazusPackageRegion():
 
         """
         print(f'Unzipping {hprPath} to {tempDir}...')
-        with zipfile.ZipFile(hprPath, 'r') as zip_ref:
-            zip_ref.extractall(tempDir)
+        try:
+            with zipfile.ZipFile(hprPath, 'r') as zip_ref:
+                zip_ref.extractall(tempDir)
+        except Exception as e:
+            print('Exception unzipHPR:')
+            print(e)
         print('...done')
         print()
 
@@ -881,7 +889,7 @@ class HazusPackageRegion():
                 'hurricane': None,
                 'tsunami': """SELECT
                         cdf.CensusBlock as block,
-                        SUM(cdf.InjuryDayTotal) as Injuries_DayFair,
+                        SUM(cdf.InjuryDayTotal) As Injuries_DayFair,
                         SUM(cdg.InjuryDayTotal) As Injuries_DayGood,
                         SUM(cdp.InjuryDayTotal) As Injuries_DayPoor,
                         SUM(cnf.InjuryNightTotal) As Injuries_NightFair,
@@ -1666,39 +1674,56 @@ class HazusPackageRegion():
 
                 #FIM Flood Inundation Mapping; Can be 1 or many
                 #unzippedHPRname/scenarioname/Riverine/Depth/returnperiodname(rpd{X}))/w001001.adf
-                #i.e. nora_temp\nora_08\Riverine\Depth\rpd8\w001001.adf
+                #Riverine i.e. nora_temp\nora_08\Riverine\Depth\rpd8\w001001.adf with a return period of rpd8
                 Selected_Rtn_Period = self.getFIMSelected_Rtn_Period()
                 Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
                                            'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
-                hazardPathDicts.append(Selected_Rtn_PeriodDict)               
-                
+                hazardPathDicts.append(Selected_Rtn_PeriodDict)
+                #Coastal
+                Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
+                                           'path':Path.joinpath(pathHPRScenario,'Coastal/Depth','rpd'+Selected_Rtn_Period,'w001001.adf')}
+                hazardPathDicts.append(Selected_Rtn_PeriodDict)
+                #Riverine i.e. SanDiego_Final_temp\New_All4\Riverine\Depth\mix0\w001001.adf with a return period of 'mix0  '
+                Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
+                                           'path':Path.joinpath(pathHPRScenario,'Riverine/Depth','mix0','w001001.adf')}
+                hazardPathDicts.append(Selected_Rtn_PeriodDict)
+                #Coastal 
+                Selected_Rtn_PeriodDict = {'name':'FIM: '+self.returnPeriod.strip(), 'returnPeriod':self.returnPeriod.strip(),
+                                           'path':Path.joinpath(pathHPRScenario,'Coastal/Depth','mix0','w001001.adf')}
+                hazardPathDicts.append(Selected_Rtn_PeriodDict)
 
                 for idx in range(len(hazardPathDicts)):
                     if hazardPathDicts[idx]['returnPeriod'] == self.returnPeriod.strip() or self.returnPeriod == 'Mix0':
                         try:
-                            raster = rio.open(hazardPathDicts[idx]['path'])
-                            affine = raster.meta.get('transform')
-                            crs = raster.meta.get('crs')
-                            band = raster.read(1)
-                            band = np.where(band < 0, 0, band)
-                            if round:
-                                band = np.rint(band)
-
-                            geoms = []
-                            for geometry, value in features.shapes(band, transform=affine):
-                                try:
-                                    if value >= 1:
-                                        result = {'properties': {
-                                            'PARAMVALUE': value}, 'geometry': geometry}
-                                    geoms.append(result)
-                                except:
-                                    pass
-                            gdf = gpd.GeoDataFrame.from_features(geoms)
-                            gdf.crs = crs
-                            gdf.geometry = gdf.geometry.to_crs(epsg=4326)
-                            hazardDict[hazardPathDicts[idx]['name']] = gdf
+                            if hazardPathDicts[idx]['path'].exists():
+                                raster = rio.open(hazardPathDicts[idx]['path'])
+                                affine = raster.meta.get('transform')
+                                crs = raster.meta.get('crs')
+                                band = raster.read(1)
+                                band = np.where(band < 0, 0, band)
+                                if round:
+                                    band = np.around(band, 0)
+                                #features.shapes requires the input array dtype be one of 'int16', 'int32', 'uint8', 'uint16', 'float32'
+                                #This is a brute force way to convert the input dtype to a supported dtype
+                                if 'int' in str(band.dtype):
+                                    band = band.astype('int16', copy=False)
+                                if 'float' in str(band.dtype):
+                                    band = band.astype('float32', copy=False)
+                                geoms = []
+                                for geometry, value in features.shapes(band, transform=affine):
+                                    try:
+                                        if value >= 1:
+                                            result = {'properties': {
+                                                'PARAMVALUE': value}, 'geometry': geometry}
+                                            geoms.append(result)
+                                    except:
+                                        pass
+                                gdf = gpd.GeoDataFrame.from_features(geoms)
+                                gdf.crs = crs
+                                gdf.geometry = gdf.geometry.to_crs(epsg=4326)
+                                hazardDict[hazardPathDicts[idx]['name']] = gdf
                         except Exception as e:
-                            print('Exception hazardPathDicts')
+                            print('Exception hazardPathDicts:')
                             print(e)
                             pass
 
@@ -1762,13 +1787,19 @@ class HazusPackageRegion():
                     pass
             #TSUNAMI
             if hazard == 'tsunami':
-                raster = rio.open(Path.joinpath(self.tempdir, self.name, '/maxdg_dft/w001001.adf')) #needs testing
+                raster = rio.open(Path.joinpath(self.tempDir, 'maxdg_dft/w001001.adf')) #needs testing
                 affine = raster.meta.get('transform')
                 crs = raster.meta.get('crs')
                 band = raster.read(1)
                 band = np.where(band < 0, 0, band)
                 if round:
-                    band = np.rint(band)
+                    band = np.around(band, 0)
+                #features.shapes requires the input array dtype be one of 'int16', 'int32', 'uint8', 'uint16', 'float32'
+                #This is a brute force way to convert the input dtype to a supported dtype
+                if 'int' in str(band.dtype):
+                    band = band.astype('int16', copy=False)
+                if 'float' in str(band.dtype):
+                    band = band.astype('float32', copy=False)
 
                 geoms = []
                 for geometry, value in features.shapes(band, transform=affine):
@@ -1810,7 +1841,7 @@ class HazusPackageRegion():
             print(e)
             raise
 
-    def getHzBoundary(self):
+    def getStudyRegionBoundary(self):
         """Get the study region area as a polygon.
             Returns:
                 df: pandas dataframe -- a dataframe of the summarized demographics
@@ -1823,7 +1854,7 @@ class HazusPackageRegion():
             df = self.query(sql)
             return HazusPackageRegionDataFrame(self, df)
         except:
-            print("Unexpected error getHzBoundary:", sys.exc_info()[0])
+            print("Unexpected error getStudyRegionBoundary:", sys.exc_info()[0])
             raise
 
     def getHurricaneTrack(self):
