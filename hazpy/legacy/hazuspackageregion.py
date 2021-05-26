@@ -527,6 +527,8 @@ class HazusPackageRegion():
                         return 'Historic'
                     if EarthquakeType == 'SCENARIO':
                         return 'Deterministic'
+                if EqScenarioType == 'U':
+                    return 'Deterministic'
                 if EqScenarioType == 'P':
                     return 'Probabilistic'
             if self.hazard == 'flood':
