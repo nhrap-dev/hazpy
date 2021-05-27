@@ -1789,7 +1789,7 @@ class HazusPackageRegion():
                     pass
             #TSUNAMI
             if hazard == 'tsunami':
-                raster = rio.open(Path.joinpath(self.tempDir, 'maxdg_dft/w001001.adf')) #needs testing
+                raster = rio.open(Path.joinpath(self.tempDir, 'maxdg_ft/w001001.adf')) #needs testing
                 affine = raster.meta.get('transform')
                 crs = raster.meta.get('crs')
                 band = raster.read(1)
