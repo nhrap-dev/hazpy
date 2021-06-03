@@ -520,12 +520,16 @@ class HazusPackageRegion():
                 dfEqScenarioType = self.query(sqlEqScenarioType)
                 EqScenarioType = dfEqScenarioType['EqScenarioType'].iat[0] #the table should be a single cell
                 if EqScenarioType == 'M':
-                    sqlEarthquakeType = f'SELECT [EarthquakeType] FROM [bk_{self.dbName}].[dbo].[eqShakeMapScenario]'
-                    dfEarthquakeType = self.query(sqlEarthquakeType)
-                    EarthquakeType = dfEarthquakeType['EarthquakeType'].iat[0] #the table should be a single cell
-                    if EarthquakeType == 'ACTUAL':
-                        return 'Historic'
-                    if EarthquakeType == 'SCENARIO':
+                    try:
+                        sqlEarthquakeType = f'SELECT [EarthquakeType] FROM [bk_{self.dbName}].[dbo].[eqShakeMapScenario]'
+                        dfEarthquakeType = self.query(sqlEarthquakeType)
+                        EarthquakeType = dfEarthquakeType['EarthquakeType'].iat[0] #the table should be a single cell
+                        if EarthquakeType == 'ACTUAL':
+                            return 'Historic'
+                        if EarthquakeType == 'SCENARIO':
+                            return 'Deterministic'
+                    except:
+                        #The table eqShakeMapScenario does not always exist
                         return 'Deterministic'
                 if EqScenarioType == 'U':
                     return 'Deterministic'
@@ -560,6 +564,7 @@ class HazusPackageRegion():
         except Exception as e:
             print("Unexpected error getEarthquakeShakemapId:", sys.exc_info()[0])
             print(e)
+            return None
 
     def getEarthquakeMagnitude(self):
         """Get the Earthquake magnitude
