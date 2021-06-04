@@ -115,6 +115,20 @@ class StudyRegion:
                     + str(returnPeriods),
                 )
 
+    def getConnectionString(self, stringName):
+        """ Looks up a connection string in a json file based on an input argument
+
+            Keyword Arguments:
+                stringName: str -- the name of the connection string in the json file
+                
+            Returns:
+                conn: pyodbc connection string that needs driver and computername updated
+        """
+        with open(os.path.join(Path(__file__).parent, "connectionStrings.json")) as f:
+            connectionStrings = json.load(f)
+            connectionString = connectionStrings[stringName]
+        return connectionString
+
     def createConnection(self, orm="pyodbc"):
         """Creates a connection object to the local Hazus SQL Server database
 
@@ -140,11 +154,7 @@ class StudyRegion:
                 # create connection with the latest driver
                 for driver in drivers:
                     try:
-                        conn = py.connect(
-                            "Driver={d};SERVER={cn}\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02".format(
-                                d=driver, cn=computer_name
-                            )
-                        )
+                        conn = py.connect(self.getConnectionString('pyodbc').format(d=driver,cn=computer_name))
                         break
                     except:
                         continue

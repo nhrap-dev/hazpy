@@ -93,8 +93,7 @@ class HazusDB():
             Returns:
                 writeConn: sqlalchemy connection
         """
-        engine = create_engine('mssql+pyodbc://hazuspuser:Gohazusplus_02@.\\HAZUSPLUSSRVR/' +
-                               databaseName+'?driver=SQL+Server')
+        engine = create_engine(self.getConnectionString('sqlalchemy').format(db=databaseName))
         writeConn = engine.connect()
         self.writeConn = writeConn
         return writeConn
