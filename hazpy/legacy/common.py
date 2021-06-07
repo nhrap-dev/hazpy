@@ -1,32 +1,9 @@
 import os
+from pathlib import Path
+import json
 import pandas as pd
 import pyodbc as py
 from sqlalchemy import create_engine
-
-
-def getStudyRegions():
-    """Gets all study region names imported into your local Hazus install
-
-    Returns:
-        studyRegions: list -- study region names
-    """
-    comp_name = os.environ['COMPUTERNAME']
-    conn = py.connect('Driver=ODBC Driver 11 for SQL Server;SERVER=' +
-                      comp_name + '\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02')
-    exclusionRows = ['master', 'tempdb', 'model',
-                     'msdb', 'syHazus', 'CDMS', 'flTmpDB']
-    cursor = conn.cursor()
-    cursor.execute('SELECT [StateID] FROM [syHazus].[dbo].[syState]')
-    for state in cursor:
-        exclusionRows.append(state[0])
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM sys.databases')
-    studyRegions = []
-    for row in cursor:
-        if row[0] not in exclusionRows:
-            studyRegions.append(row[0])
-    studyRegions.sort(key=lambda x: x.lower())
-    return studyRegions
 
 
 class HazusDB():
@@ -38,6 +15,20 @@ class HazusDB():
         self.conn = self.createConnection()
         self.cursor = self.conn.cursor()
         self.databases = self.getDatabases()
+
+    def getConnectionString(self, stringName):
+        """ Looks up a connection string in a json file based on an input argument
+
+            Keyword Arguments:
+                stringName: str -- the name of the connection string in the json file
+                
+            Returns:
+                conn: pyodbc connection string that needs driver and computername updated
+        """
+        with open(os.path.join(Path(__file__).parent, "connectionStrings.json")) as f:
+            connectionStrings = json.load(f)
+            connectionString = connectionStrings[stringName]
+        return connectionString
 
     def createConnection(self):
         """ Creates a connection object to the local Hazus SQL Server database
@@ -60,8 +51,7 @@ class HazusDB():
         # create connection with the latest driver
         for driver in drivers:
             try:
-                conn = py.connect('Driver={d};SERVER={cn}\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02'.format(
-                    d=driver, cn=computer_name))
+                conn = py.connect(self.getConnectionString('pyodbc').format(d=driver,cn=computer_name))
                 break
             except:
                 continue
@@ -78,8 +68,7 @@ class HazusDB():
             Returns:
                 writeConn: sqlalchemy connection
         """
-        engine = create_engine('mssql+pyodbc://hazuspuser:Gohazusplus_02@.\\HAZUSPLUSSRVR/' +
-                               databaseName+'?driver=SQL+Server')
+        engine = create_engine(self.getConnectionString('sqlalchemy').format(db=databaseName))
         writeConn = engine.connect()
         self.writeConn = writeConn
         return writeConn

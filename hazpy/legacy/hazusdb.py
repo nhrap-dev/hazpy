@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+import json
 import pandas as pd
 import pyodbc as py
 from sqlalchemy import create_engine
@@ -32,6 +34,20 @@ class HazusDB():
         self.databases = self.getDatabases()
         self.studyRegions = self.getStudyRegions()
 
+    def getConnectionString(self, stringName):
+        """ Looks up a connection string in a json file based on an input argument
+
+            Keyword Arguments:
+                stringName: str -- the name of the connection string in the json file
+                
+            Returns:
+                conn: pyodbc connection string that needs driver and computername updated
+        """
+        with open(os.path.join(Path(__file__).parent, "connectionStrings.json")) as f:
+            connectionStrings = json.load(f)
+            connectionString = connectionStrings[stringName]
+        return connectionString
+
     def createConnection(self, orm='pyodbc'):
         """ Creates a connection object to the local Hazus SQL Server database
 
@@ -57,15 +73,10 @@ class HazusDB():
                 # create connection with the latest driver
                 for driver in drivers:
                     try:
-                        conn = py.connect('Driver={d};SERVER={cn}\HAZUSPLUSSRVR; UID=SA;PWD=Gohazusplus_02'.format(
-                            d=driver, cn=computer_name))
+                        conn = py.connect(self.getConnectionString('pyodbc').format(d=driver,cn=computer_name))
                         break
                     except:
                         continue
-            # TODO add sqlalchemy connection
-            # if orm == 'sqlalchemy':
-            #     conn = create_engine('mssql+pyodbc://SA:Gohazusplus_02@HAZUSPLUSSRVR')
-            # self.conn = conn
             return conn
         except:
             print("Unexpected error:", sys.exc_info()[0])
@@ -169,15 +180,10 @@ class HazusDB():
                 self.schema = schema
                 self.table = table
 
-                comp_name = os.environ['COMPUTERNAME']
-                server = comp_name+"\HAZUSPLUSSRVR"
-                user = 'SA'
-                password = 'Gohazusplus_02'
+                computer_name = os.environ['COMPUTERNAME']
                 driver = 'ODBC Driver 13 for SQL Server'
                 # driver = 'ODBC Driver 11 for SQL Server'
-                engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(
-                    "DRIVER={0};SERVER={1};PORT=1433;DATABASE={2};UID={3};PWD={4};TDS_Version=8.0;".format(driver, server, database, user, password))))
-                # self.engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus("DRIVER={4};SERVER={0};PORT=1433;DATABASE={1};UID={2};PWD={3};TDS_Version=8.0;".format(driserver, database, user, password, driver))))
+                engine = create_engine("mssql+pyodbc:///?odbc_connect={}".format(urllib.parse.quote_plus(self.getConnectionString('sqlalchemyEditSession').format(d=driver, cn=computer_name, db=database))))
                 self.conn = engine.connect()
 
                 sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'"+table+"'"
