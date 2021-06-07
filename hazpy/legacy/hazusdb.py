@@ -77,10 +77,6 @@ class HazusDB():
                         break
                     except:
                         continue
-            # TODO add sqlalchemy connection
-            # if orm == 'sqlalchemy':
-            #     conn = create_engine('mssql+pyodbc://SA:Gohazusplus_02@HAZUSPLUSSRVR')
-            # self.conn = conn
             return conn
         except:
             print("Unexpected error:", sys.exc_info()[0])
