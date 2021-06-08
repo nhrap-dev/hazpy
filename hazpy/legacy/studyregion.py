@@ -1,4 +1,4 @@
-import os, sys
+import os
 import pandas as pd
 import geopandas as gpd
 import pyodbc as py
@@ -23,6 +23,7 @@ import numpy as np
 from .studyregiondataframe import StudyRegionDataFrame
 from .report import Report
 
+
 class StudyRegion:
     """Creates a study region object using an existing study region in the local Hazus database
 
@@ -31,21 +32,18 @@ class StudyRegion:
         hazard: str -- the name of the peril. Only necessary if the study region has more than one hazard.
     """
 
-    def __init__(self, studyRegion, hprFile=''):
+    def __init__(self, studyRegion):
         self.name = studyRegion
-        self.hprFile = hprFile
         self.conn = self.createConnection()
         # set hazard, scenario, and return period
         # NOTE: all flood and hurricane queries need to include a where clause equal to self.scenario and self.returnPeriod
         self.setHazard()
+       # self.setHazard(hazard='tsunami')
         self.report = Report(self, self.name, "", self.hazard)
 
     def setHazard(self, hazard=None):
         # validate hazard
-        if self.hprFile:
-            hazards = self.getHazardsAnalyzedHPR()
-        else:
-            hazards = self.getHazardsAnalyzed()
+        hazards = self.getHazardsAnalyzed()
         if hazard == None and len(hazards) == 1:
             self.hazard = hazards[0]
         elif hazard == None and len(hazards) > 1:
@@ -153,15 +151,8 @@ class StudyRegion:
             #     conn = create_engine('mssql+pyodbc://SA:Gohazusplus_02@HAZUSPLUSSRVR')
             # self.conn = conn
             return conn
-        except Exception as e:
-            print('\n')
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
-            print('\n')
             raise
 
     def query(self, sql):
@@ -176,16 +167,8 @@ class StudyRegion:
         try:
             df = pd.read_sql(sql, self.conn)
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print('\n')
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
-            print('\n')
-            # NOTE: uncomment error print only for debugging
-            # print("Unexpected error:", sys.exc_info()[0])
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
             raise
 
     def getHazardBoundary(self):
@@ -201,12 +184,7 @@ class StudyRegion:
             )
             df = self.query(sql)
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -227,7 +205,9 @@ class StudyRegion:
                 "flood": """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0))* {c} as EconLoss from {s}.dbo.flFRGBSEcLossByTotal
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = '{rp}'
-                 group by CensusBlock""".format(
+                 group by CensusBlock
+                 HAVING Sum(ISNULL(TotalLoss, 0)) * {c} > 0
+                 """.format(
                     s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod
                 ),
                 # NOTE: huSummaryLoss will result in double economic loss. It stores results for occupancy and structure type
@@ -250,12 +230,7 @@ class StudyRegion:
 
             df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -318,12 +293,7 @@ class StudyRegion:
 
             df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -390,12 +360,7 @@ class StudyRegion:
 
             df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -461,12 +426,7 @@ class StudyRegion:
 
             df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -527,12 +487,7 @@ class StudyRegion:
             else:
                 df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -586,12 +541,7 @@ class StudyRegion:
             else:
                 df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -629,12 +579,7 @@ class StudyRegion:
             else:
                 df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -671,12 +616,7 @@ class StudyRegion:
             else:
                 df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -717,118 +657,40 @@ class StudyRegion:
 
             df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
-    def getHazardsAnalyzed(self, returnType='list'):
-       """ Queries the local Hazus SQL Server database and returns all hazards analyzed
+    def getHazardsAnalyzed(self, returnType="list"):
+        """Queries the local Hazus SQL Server database and returns all hazards analyzed
 
-           Key Argument:
-               returnType: string -- choices: 'list', 'dict'
-           Returns:
-               df: pandas dataframe -- a dataframe of the hazards analyzed
-       """
-       try:
-           sql = "select * from [syHazus].[dbo].[syStudyRegion] where [RegionName] = '" + \
-               self.name + "'"
-           df = self.query(sql)
-           hazardsDict = {
-               'earthquake': df['HasEqHazard'][0],
-               'hurricane': df['HasHuHazard'][0],
-               'tsunami': df['HasTsHazard'][0],
-               'flood': df['HasFlHazard'][0]
-           }
-           if returnType == 'dict':
-               return hazardsDict
-           if returnType == 'list':
-               hazardsList = list(
-                   filter(lambda x: hazardsDict[x], hazardsDict))
-               return hazardsList
-       except:
-           print("Unexpected error:", sys.exc_info()[0])
-           raise
-
-    def getHazardsAnalyzedHPR(self, returnType='list'):
-        """This function is not yet complete.
-        HPR files are zipfiles and zipfiles have an embedded comment. This has
-        been used to store information at the hpr time of creation.
-
-        Notes: Version|RegionName|.bk|Earthquake|Flood|Hurricane
-               '31ed16|121212|NorCal-BayArea_SanAndreasM7-8|NorCal-BayArea_SanAndreasM7-8.bk|1|0|0'
-
-               Version|RegionName|.bk|Earthquake|Flood|Hurricane|Tsunami
-               '31ed16|202020|FIMJacksonMO|FIMJacksonMO.bk|0|1|0|0'
-               
-               The first pipe is unknown what it is.
-               EQ added 1997
-               FL added 2003
-               HU 2004
-               TS 2017 added in Hazus 4.0
-
-               Only support as far back as Hazus 2.0.
+        Key Argument:
+            returnType: string -- choices: 'list', 'dict'
+        Returns:
+            df: pandas dataframe -- a dataframe of the hazards analyzed
         """
-        versionLookupDict = {'060606':'Hazus MR1'
-                             ,'070707':'Hazus MR2'
-                             ,'080808':'Hazus MR3'
-                             ,'090909':'Hazus MR4'
-                             ,'101010':'Hazus MR5'
-                             ,'111111':'Hazus 2.0'
-                             ,'121212':'Hazus 2.1'
-                             ,'131313':'Hazus 3.0'
-                             ,'141414':'Hazus 3.1'
-                             ,'151515':'Hazus 4.0'
-                             ,'161616':'Hazus 4.1'
-                             ,'171717':'Hazus 4.2'
-                             ,'181818':'Hazus 4.2.1'
-                             ,'191919':'Hazus 4.2.2'
-                             ,'202020':'Hazus 4.2.3'
-                             ,'212121':'Hazus 5.0'}
         try:
-            z = zipfile.ZipFile(self.hprFile)
-            zComment = z.comment.decode('UTF-8').split('|')
-            zVersion = zComment[1]
-            if zVersion in versionLookupDict:
-                vHazus = versionLookupDict[zVersion]
-                #handle hpr after Hazus 4.0
-                if len(zComment) == 8:
-                    zRegionName = zComment[2]
-                    zbk = zComment[3]
-                    hazardsDict = {
-                        'earthquake': int(zComment[4]),
-                        'flood': int(zComment[5]),
-                        'hurricane': int(zComment[6]),
-                        'tsunami': int(zComment[7])}
-                #handle hpr before Hazus 4.0
-                elif len(zComment) == 7:
-                    zRegionName = zComment[2]
-                    zbk = zComment[3]
-                    hazardsDict = {
-                        'earthquake': int(zComment[4]),
-                        'flood': int(zComment[5]),
-                        'hurricane': int(zComment[6]),
-                        'tsunami': 0}
-                else:
-                    print(f'{zComment} not recognized')
-                print(vHazus, zComment)
+            sql = (
+                "select * from [syHazus].[dbo].[syStudyRegion] where [RegionName] = '"
+                + self.name
+                + "'"
+            )
+            df = self.query(sql)
+            hazardsDict = {
+                "earthquake": df["HasEqHazard"][0],
+                "hurricane": df["HasHuHazard"][0],
+                "tsunami": df["HasTsHazard"][0],
+                "flood": df["HasFlHazard"][0],
+            }
             if returnType == "dict":
                 return hazardsDict
             if returnType == "list":
-                hazardsList = list(filter(lambda x: hazardsDict[x], hazardsDict))
+                hazardsList = list(
+                    filter(lambda x: hazardsDict[x], hazardsDict))
                 return hazardsList
-            else:
-                print(f'{zVersion} not in Hazus version list.')
         except:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
             print("Unexpected error:", sys.exc_info()[0])
+            raise
 
     def getHazardGeoDataFrame(self, round=True):
         """Queries the local Hazus SQL Server database and returns a geodataframe of the hazard
@@ -1009,7 +871,6 @@ class StudyRegion:
                         hazardPathDicts[idx]["returnPeriod"] == self.returnPeriod
                         or self.returnPeriod == "Mix0"
                     ):
-             #           print('\n{} Idx {} has data\n'.format(self.returnPeriod, idx))
                         try:
                             raster = rio.open(hazardPathDicts[idx]["path"])
                             affine = raster.meta.get("transform")
@@ -1030,36 +891,24 @@ class StudyRegion:
                                             "geometry": geometry,
                                         }
                                     geoms.append(result)
-                                except Exception as e:
-                                    print('\nError 1')
-                                    print(e)
-                                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                                    print(fname)
-                                    print(exc_type, exc_tb.tb_lineno)
-                                    print('\n')
-                                  #  pass
+                                except:
+                                    print("Unexpected error:",
+                                          sys.exc_info()[0])
+                                    pass
                             gdf = gpd.GeoDataFrame.from_features(geoms)
-                      #      print('This is gdf: {}'.format(gdf.head(2)))
                             gdf.crs = crs
                             gdf.geometry = gdf.geometry.to_crs(epsg=4326)
                             hazardDict[hazardPathDicts[idx]["name"]] = gdf
-                        except Exception as e:
-                            print('\nError 2')
-                            print(e)
-                            exc_type, exc_obj, exc_tb = sys.exc_info()
-                            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                            print(fname)
-                            print(exc_type, exc_tb.tb_lineno)
-                            print('\n')
-                          #  pass
+                        except:
+                            print("Unexpected error:", sys.exc_info()[0])
+                            pass
             if hazard == "hurricane":
                 try:
                     hazardPathDict = {
                         # Historic
                         "Historic Wind Speeds (mph)": {
                             "returnPeriod": "0",
-                            "path": "SELECT Tract as tract, PeakGust as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
+                            "path": "SELECT Tract as tract, PeakGust * 1.275 as PARAMVALUE FROM {s}.[dbo].[hv_huHistoricWindSpeedT] WHERE PeakGust {o} 0 AND huScenarioName = '{sc}'".format(
                                 s=self.name, sc=self.scenario, o=operator
                             ),
                         },
@@ -1127,8 +976,10 @@ class StudyRegion:
                                 if len(df) > 0:
                                     sdf = StudyRegionDataFrame(self, df)
                                     sdf = sdf.addGeometry()
-                                    sdf["geometry"] = sdf["geometry"].apply(loads)
-                                    gdf = gpd.GeoDataFrame(sdf, geometry="geometry")
+                                    sdf["geometry"] = sdf["geometry"].apply(
+                                        loads)
+                                    gdf = gpd.GeoDataFrame(
+                                        sdf, geometry="geometry")
                                     hazardDict[key] = gdf
                             except:
                                 pass
@@ -1137,7 +988,7 @@ class StudyRegion:
 
             if hazard == "tsunami":
                 raster = rio.open(
-                    r"C:\HazusData\Regions\{s}\maxdg_dft\w001001.adf".format(
+                    r"C:\HazusData\Regions\{s}\maxdg_ft\w001001.adf".format(
                         s=self.name
                     )
                 )
@@ -1160,16 +1011,17 @@ class StudyRegion:
                     except:
                         pass
                 gdf = gpd.GeoDataFrame.from_features(geoms)
-                gdf.PARAMVALUE[gdf.PARAMVALUE > 60] = 0
+                gdf.PARAMVALUE[gdf.PARAMVALUE > 60] = 0 # TODO: Review this - BC
                 gdf.crs = crs
                 gdf.geometry = gdf.geometry.to_crs(epsg=4326)
                 hazardDict["Water Depth (ft)"] = gdf
 
             keys = list(hazardDict.keys())
-    
+
             if len(hazardDict.keys()) > 1:
                 gdf = gpd.GeoDataFrame(
-                    pd.concat([hazardDict[x] for x in keys], ignore_index=True),
+                    pd.concat([hazardDict[x]
+                              for x in keys], ignore_index=True),
                     geometry="geometry",
                 )
             else:
@@ -1177,16 +1029,9 @@ class StudyRegion:
             sdf = StudyRegionDataFrame(self, gdf)
             sdf.title = keys[0]
             return sdf
-        except Exception as e:
-            print('\n')
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
-            print('\n')
-            raise
+            pass
 
     def getScenarios(self):
         """Queries all scenarios for the study region
@@ -1197,18 +1042,6 @@ class StudyRegion:
         """
 
         try:
-##            if self.hazard == 'earthquake':
-##                sql = """SELECT [eqScenarioname] as scenarios
-##                            FROM [syHazus].[dbo].[eqScenario]
-##                            WHERE eqScenarioID = 
-##                                (SELECT [eqScenarioId]
-##                                    FROM [syHazus].[dbo].[eqRegionScenario]
-##                                    WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
-##                                        WHERE RegionName = '{s}'))""".format(s=self.name)
-            if self.hazard == 'earthquake':
-                sql = """SELECT [eqScenarioname] as scenarios
-                            FROM [{s}].[dbo].[RgnExpeqScenario]
-                            """.format(s=self.name)
             if self.hazard == "earthquake":
                 sql = """SELECT [eqScenarioname] as scenarios
                             FROM [syHazus].[dbo].[eqScenario]
@@ -1223,18 +1056,10 @@ class StudyRegion:
             if (
                 self.hazard == "hurricane"
             ):  # hurricane can only have one active scenario
-                sql = """SELECT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
+                sql = """SELECT DISTINCT [CurrentScenario] as scenarios FROM {s}.[dbo].[huTemplateScenario]""".format(
                     s=self.name)
                 # sql = """select distinct(huScenarioName) as scenarios from {s}.dbo.[huSummaryLoss]""".format(
                 #     s=self.name)
-                sql = """select distinct(huScenarioName) as scenarios from [{s}].dbo.[huSummaryLoss]""".format(s=self.name)
-            if self.hazard == 'flood':  # flood can have many scenarios
-                sql = """SELECT [StudyCaseName] as scenarios FROM [{s}].[dbo].[flStudyCase]""".format(
-                    s=self.name)
-            if self.hazard == 'tsunami':  # tsunami can have many scenarios
-                sql = """SELECT [ScenarioName] as scenarios FROM [{s}].[dbo].[tsScenario]""".format(
-                    s=self.name)
-
             if self.hazard == "flood":  # flood can have many scenarios
                 sql = """SELECT [StudyCaseName] as scenarios FROM {s}.[dbo].[flStudyCase]""".format(
                     s=self.name
@@ -1246,12 +1071,7 @@ class StudyRegion:
             queryset = self.query(sql)
             scenarios = list(queryset["scenarios"])
             return scenarios
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -1263,29 +1083,6 @@ class StudyRegion:
 
         """
         try:
-##            if self.hazard == 'earthquake':
-##                sql = """SELECT [ReturnPeriod] as returnPeriod
-##                            FROM [syHazus].[dbo].[eqScenario]
-##                            WHERE eqScenarioID = 
-##                                (SELECT [eqScenarioId]
-##                                    FROM [syHazus].[dbo].[eqRegionScenario]
-##                                    WHERE RegionID = (SELECT RegionID FROM [syHazus].[dbo].[syStudyRegion]
-##                                        WHERE RegionName = '{s}'))""".format(s=self.name)
-            if self.hazard == 'earthquake':
-                sql = """SELECT [eqScenarioname] as scenarios
-                            FROM [{s}].[dbo].[RgnExpeqScenario]
-                            """.format(s=self.name)
-            if self.hazard == 'hurricane':
-                sql = """SELECT DISTINCT [Return_Period] as returnPeriod FROM [{s}].[dbo].[hv_huQsrEconLoss] where huScenarioName = '{sc}'""".format(
-                    s=self.name, sc=self.scenario)
-            if self.hazard == 'flood':  # TODO test if this works for UDF
-                sql = """SELECT DISTINCT [ReturnPeriodID] as returnPeriod FROM [{s}].[dbo].[flFRGBSEcLossByTotal]
-                where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
-                """.format(
-                    s=self.name, sc=self.scenario)
-            if self.hazard == 'tsunami':  # selecting 0 due to no return period existing in database
-                sql = """SELECT '0' as returnPeriod FROM [{s}].[dbo].[tsScenario]""".format(
-                    s=self.name)
             if self.hazard == "earthquake":
                 sql = """SELECT [ReturnPeriod] as returnPeriod
                             FROM [syHazus].[dbo].[eqScenario]
@@ -1312,38 +1109,28 @@ class StudyRegion:
                         s=self.name
                     )
                 )
-
             queryset = self.query(sql)
             returnPeriods = list(queryset["returnPeriod"])
+            # Check for return periods
+            if any(returnPeriods):
+                # strip excess spaces
+                returnPeriods = [x.strip() for x in returnPeriods]
+                intPeriods = []
+                strPeriods = []
+                for period in returnPeriods:
+                    try:
+                        intPeriods.append(int(period))
+                    except:
+                        strPeriods.append(period)
+                if len(intPeriods) > 0:
+                    intPeriods.sort()
+                    intPeriods = [str(x) for x in intPeriods]
+                returnPeriods = intPeriods + strPeriods
             # assign as 0 if no return periods exists
-            if len(returnPeriods) == 0:
-                returnPeriods.append("0")
-            # Sort return periods
-            if len(returnPeriods) > 0:
-                try:
-                    # strip excess spaces
-                    returnPeriods = [x.strip() for x in returnPeriods]
-                    intPeriods = []
-                    strPeriods = []
-                    for period in returnPeriods:
-                        try:
-                            intPeriods.append(int(period))
-                        except:
-                            strPeriods.append(period)
-                    if len(intPeriods) > 0:
-                        intPeriods.sort()
-                        intPeriods = [str(x) for x in intPeriods]
-                    returnPeriods = intPeriods + strPeriods
-                except:
-                    print("unable to sort return periods")
-
+            else:
+                returnPeriods = '0'
             return returnPeriods
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -1403,8 +1190,8 @@ class StudyRegion:
             for facility in essentialFacilities:
                 try:
                     # get all column names for study region table
-                    sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'{p}{f}'""".format(
-                        f=facility, p=prefix
+                    sql = """SELECT COLUMN_NAME as "fieldName" FROM {s}.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'{p}{f}'""".format(
+                        s=self.name, f=facility, p=prefix
                     )
                     df = self.query(sql)
                     if len(df) > 0:
@@ -1418,20 +1205,23 @@ class StudyRegion:
                         # get Id column name
                         idColumnList = [x for x in srcolumns if facility in x]
                         if len(idColumnList) == 0:
-                            idColumnList = [x for x in srcolumns if x.endswith("Id")]
+                            idColumnList = [
+                                x for x in srcolumns if x.endswith("Id")]
                         idColumn = idColumnList[0]
 
                         # build query fields for study region table
-                        tempColumns = [x.replace(x, "[" + x + "]") for x in srcolumns]
+                        tempColumns = [x.replace(x, "[" + x + "]")
+                                       for x in srcolumns]
                         tempColumns.insert(
                             0, "'" + facility + "'" + ' as "FacilityType"'
                         )
-                        tempColumns.insert(0, "[" + idColumn + "] as FacilityId")
+                        tempColumns.insert(
+                            0, "[" + idColumn + "] as FacilityId")
                         studyRegionColumns = ", ".join(tempColumns)
 
                         # get all column names for hz table
-                        sql = """SELECT COLUMN_NAME as "fieldName" FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'hz{f}'""".format(
-                            f=facility, p=prefix
+                        sql = """SELECT COLUMN_NAME as "fieldName" FROM {s}.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = N'hz{f}'""".format(
+                            s=self.name, f=facility, p=prefix
                         )
                         df = self.query(sql)
                         hzcolumns = df["fieldName"].tolist()
@@ -1449,22 +1239,27 @@ class StudyRegion:
                         hzcolumns = [
                             x for x in hzcolumns if any(f in x for f in containFields)
                         ]
-                        tempColumns = [x.replace(x, "[" + x + "]") for x in hzcolumns]
+                        tempColumns = [x.replace(x, "[" + x + "]")
+                                       for x in hzcolumns]
                         tempColumns = [
-                            x.replace("[Shape]", "Shape.STAsText() as geometry")
+                            x.replace(
+                                "[Shape]", "Shape.STAsText() as geometry")
                             for x in tempColumns
                         ]
                         tempColumns = [
                             x.replace("[Statea]", "[Statea] as State")
                             for x in tempColumns
                         ]
-                        tempColumns.insert(0, "[" + idColumn + "] as FacilityId")
+                        tempColumns.insert(
+                            0, "[" + idColumn + "] as FacilityId")
                         hazusColumns = ", ".join(tempColumns)
 
                         # build queryset columns
                         # replace hzcolumns
-                        hzcolumns = [x.replace("Statea", "State") for x in hzcolumns]
-                        hzcolumns = [x.replace("Shape", "geometry") for x in hzcolumns]
+                        hzcolumns = [x.replace("Statea", "State")
+                                     for x in hzcolumns]
+                        hzcolumns = [x.replace("Shape", "geometry")
+                                     for x in hzcolumns]
                         # replace srcolumns
                         srcolumns = [
                             x.replace(idColumn, "FacilityId") for x in srcolumns
@@ -1485,16 +1280,17 @@ class StudyRegion:
                             x.replace("COMPLETE", "COMPLETE as Destroyed")
                             for x in srcolumns
                         ]
-                        hzcolumnsFinal = ", ".join(["hz." + x for x in hzcolumns])
-                        srcolumnsFinal = ", ".join(["sr." + x for x in srcolumns])
-                        querysetColumns = ", ".join([srcolumnsFinal, hzcolumnsFinal])
-
+                        hzcolumnsFinal = ", ".join(
+                            ["hz." + x for x in hzcolumns])
+                        srcolumnsFinal = ", ".join(
+                            ["sr." + x for x in srcolumns])
+                        querysetColumns = (
+                            ", ".join([srcolumnsFinal, hzcolumnsFinal])).strip().rstrip(',')
                         # change to real dollars
                         if "sr.EconLoss" in querysetColumns:
                             querysetColumns = querysetColumns.replace(
                                 "sr.EconLoss", "sr.EconLoss * 1000 as EconLoss"
-                            )
-                        print('\nThe name is: {}\n'.format(self.name))
+                            ).rstrip(', ')
                         # build where clause
                         whereClauseDict = {
                             "earthquake": """where EconLoss > 0""",
@@ -1530,12 +1326,11 @@ class StudyRegion:
                             qc=querysetColumns,
                             src=studyRegionColumns,
                             hzc=hazusColumns,
-                            wc=whereClause,
+                            wc=whereClause
                         )
 
                         # get queryset from database
                         df = self.query(sql)
-
                         # check if the queryset contains data
                         if len(df) > 1:
                             # convert all booleans to string
@@ -1544,36 +1339,22 @@ class StudyRegion:
                             df = df.where(mask, df.replace(replaceDict))
                             # add to dictionary
                             essentialFacilityDataFrames[facility] = df
-                except Exception as e:
-                    print('\n')
-                    print(e)
-                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    print(fname)
-                    print(exc_type, exc_tb.tb_lineno)
+                except:
                     print("Unexpected error:", sys.exc_info()[0])
-                    print('\n')
-                #    pass
+                    pass
             # if essentialFacilityDataFrames contains data, concatenate into a dataframe
             if len(essentialFacilityDataFrames) > 0:
                 essentialFacilityDf = pd.concat(
-                    [x.fillna("null") for x in essentialFacilityDataFrames.values()],
+                    [x.fillna("null")
+                     for x in essentialFacilityDataFrames.values()],
                     sort=False,
                 ).fillna("null")
                 return StudyRegionDataFrame(self, essentialFacilityDf)
             else:
-                print("\nNo essential facility loss information for " + self.name + '\n')
-        except Exception as e:
-            print('\n')
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
-            print('\n')
-           # print(
-             #   "Unexpected error:", sys.exc_info()[0]
-          #  )  # TODO - BC: create one general function for errors, and call that instead
+                print("\nNo essential facility loss information for " +
+                      self.name + '\n')
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
             raise
 
     def getDemographics(self):
@@ -1601,12 +1382,7 @@ class StudyRegion:
 
             df = self.query(sqlDict[self.hazard])
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -1666,12 +1442,7 @@ class StudyRegion:
             df.drop(empty_cols, axis=1, inplace=True)
 
             return StudyRegionDataFrame(self, df)
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -1699,12 +1470,7 @@ class StudyRegion:
             df["geometry"] = df["geometry"].apply(loads)
             gdf = gpd.GeoDataFrame(df, geometry="geometry")
             return gdf
-        except Exception as e:
-            print(e)
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(fname)
-            print(exc_type, exc_tb.tb_lineno)
+        except:
             print("Unexpected error:", sys.exc_info()[0])
             raise
 
@@ -1724,7 +1490,8 @@ class StudyRegion:
                     ISNULL(travel.Trav_SafeOver65, 0) as travelTimeOver65yo
                         FROM {s}.dbo.[hzCensusBlock_TIGER] as tiger
                             FULL JOIN {s}.dbo.tsTravelTime as travel
-                                ON tiger.CensusBlock = travel.CensusBlock""".format(
+                                ON tiger.CensusBlock = travel.CensusBlock
+                    WHERE travel.Trav_SafeOver65 > 0""".format(
                     s=self.name
                 )
 
@@ -1732,12 +1499,7 @@ class StudyRegion:
                 df["geometry"] = df["geometry"].apply(loads)
                 gdf = gpd.GeoDataFrame(df, geometry="geometry")
                 return gdf
-            except Exception as e:
-                print(e)
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(fname)
-                print(exc_type, exc_tb.tb_lineno)
+            except:
                 print("Unexpected error:", sys.exc_info()[0])
                 raise
         else:
