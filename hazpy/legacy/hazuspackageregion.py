@@ -789,7 +789,7 @@ class HazusPackageRegion():
                 """.format(s=self.name),
                 'flood': """SELECT CensusBlock as block, SUM(ISNULL(TotalLoss, 0)) * {c}
                         AS TotalLoss, SUM(ISNULL(BuildingLoss, 0)) * {c} AS BldgLoss,
-                        SUM(ISNULL(ContentsLoss, 0)) * {c} AS ContLoss
+                        SUM(CAST(ISNULL(ContentsLoss, 0) AS BIGINT)) * {c} AS ContLoss
                         FROM [{s}].dbo.[flFRGBSEcLossBySOccup] 
                         where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                         and ReturnPeriodId = '{rp}'
