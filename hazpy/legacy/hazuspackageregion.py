@@ -755,7 +755,7 @@ class HazusPackageRegion():
             constant = 1000
             sqlDict = {
                 'earthquake': """select Tract as tract, SUM(ISNULL(TotalLoss, 0)) * {c} as EconLoss from {s}.dbo.[eqTractEconLoss] group by [eqTractEconLoss].Tract""".format(s=self.name, c=constant),
-                'flood': """select CensusBlock as block, Sum(ISNULL(TotalLoss, 0))* {c} as EconLoss from {s}.dbo.flFRGBSEcLossByTotal
+                'flood': """select CensusBlock as block, Sum(CAST(ISNULL(TotalLoss, 0) AS BIGINT))* {c} as EconLoss from {s}.dbo.flFRGBSEcLossByTotal
                     where StudyCaseId = (select StudyCaseID from {s}.[dbo].[flStudyCase] where StudyCaseName = '{sc}')
                     and ReturnPeriodId = '{rp}'
                  group by CensusBlock""".format(s=self.name, c=constant, sc=self.scenario, rp=self.returnPeriod),
