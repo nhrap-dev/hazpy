@@ -52,7 +52,7 @@ class StudyRegionDataFrame(pd.DataFrame):
         """
         try:
 
-            sql = """SELECT CensusBlock as block, Shape.STAsText() AS geometry FROM {s}.dbo.hzCensusBlock""".format(
+            sql = """SELECT CensusBlock as block, Shape.STAsText() AS geometry FROM {s}.dbo.hzCensusBlock_TIGER""".format(
                 s=self.studyRegion)
 
             df = self.query(sql)
