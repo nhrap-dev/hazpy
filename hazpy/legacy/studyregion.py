@@ -1112,7 +1112,7 @@ class StudyRegion:
             queryset = self.query(sql)
             returnPeriods = list(queryset["returnPeriod"])
             # Check for return periods
-            if any(returnPeriods):
+            if any(returnPeriods) and -1 not in returnPeriods:
                 # strip excess spaces
                 returnPeriods = [x.strip() for x in returnPeriods]
                 intPeriods = []
