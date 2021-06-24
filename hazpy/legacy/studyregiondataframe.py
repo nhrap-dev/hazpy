@@ -134,7 +134,8 @@ class StudyRegionDataFrame(pd.DataFrame):
             if 'geometry' not in self.columns:
                 self = self.addGeometry()
             self['geometry'] = self['geometry'].apply(lambda x: loads(str(x)))
-            gdf = gpd.GeoDataFrame(self, geometry='geometry')
+            crs = {'init' :'epsg:4326'}
+            gdf = gpd.GeoDataFrame(self, geometry='geometry', crs=crs)
             gdf.to_file(path, driver='ESRI Shapefile')
         except:
             print("Unexpected error:", sys.exc_info()[0])
